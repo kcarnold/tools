@@ -56,11 +56,13 @@
       display: -webkit-flex; display: flex;
       -webkit-flex-wrap: wrap; flex-wrap: wrap;
       -webkit-justify-content: center; justify-content: center;
-      gap: 10px 8px; margin-bottom: 14px;
+      gap: 10px 4px; margin-bottom: 14px;
     }
+    /* 64px so all five surprise tiles sit in one row on a phone: the setup    */
+    /* column is 340px wide there, and 5 x 64 + 4 x 4 = 336.                   */
     .art-thumb-wrap {
       -webkit-flex-shrink: 0; flex-shrink: 0;
-      width: 76px;
+      width: 64px;
       display: -webkit-flex; display: flex;
       -webkit-flex-direction: column; flex-direction: column;
       -webkit-align-items: center; align-items: center;
@@ -288,6 +290,12 @@
       -webkit-flex-direction: column; flex-direction: column;
       -webkit-align-items: center; align-items: center; gap: 4px;
     }
+    /* One heading per category, spanning the whole row of the flex grid. */
+    .collection-head {
+      width: 100%; font-size: 0.8em; font-weight: 700; color: #cbd5e1;
+      margin: 10px 0 0; padding-bottom: 4px; border-bottom: 1px solid #2b3446;
+    }
+    .collection-head:first-child { margin-top: 0; }
     .collection-item canvas { width: 62px; height: 62px; border-radius: 50%; display: block; }
     .collection-item span { font-size: 0.62em; color: #6b7280; text-align: center; line-height: 1.2; }
     .collection-item.found { cursor: pointer; }
@@ -385,9 +393,9 @@
 
 <div class="setup" id="setup">
   <div class="setup-col">
-  <div class="section-label">Choose an image</div>
+  <div class="section-label">Surprise me with…</div>
   <div class="art-row" id="artRow"></div>
-  <button class="collection-btn" type="button" id="collectionBtn">🐾 My Animals — <span id="collectionCount">0 of 0</span></button>
+  <button class="collection-btn" type="button" id="collectionBtn">🎁 My Collection — <span id="collectionCount">0 of 0</span></button>
   <div class="divider"><div class="divider-line"></div><span>or</span><div class="divider-line"></div></div>
   <label class="upload-btn" for="imageInput" id="uploadLabel">Upload your own photo</label>
   <input type="file" accept="image/*" id="imageInput">
@@ -440,7 +448,7 @@
     </label>
     <label for="soundToggle">Play sound when done</label>
   </div>
-  <div class="start-bar"><button class="start-btn" id="startBtn" disabled>Choose an image first</button></div>
+  <div class="start-bar"><button class="start-btn" id="startBtn" disabled>Pick a surprise first</button></div>
   </div>
 </div>
 
@@ -461,7 +469,7 @@
 <div class="sheet" id="collectionSheet">
   <div class="sheet-inner">
     <div class="sheet-head">
-      <h2>My Animals</h2>
+      <h2>My Collection</h2>
       <button type="button" id="collectionClose" aria-label="Close">✕</button>
     </div>
     <div class="sheet-sub" id="collectionSub"></div>
@@ -1343,6 +1351,116 @@
     ctx.stroke();
   }
 
+  /* ---- Requested by name: a silly sea star and a crocodile ----------------- */
+  /* "Silly" is carried by the eyes: googly, mismatched in size, pupils looking  */
+  /* in different directions. Everything else stays in the house style above.    */
+  function googly(ctx, x, y, r, px, py) {
+    circ(ctx,x,y,r*1.12,'#1c1c1c');
+    circ(ctx,x,y,r,'#ffffff');
+    circ(ctx,x+px*r*0.42,y+py*r*0.42,r*0.5,'#141414');
+    circ(ctx,x+px*r*0.42-r*0.16,y+py*r*0.42-r*0.18,r*0.15,'rgba(255,255,255,0.95)');
+  }
+
+  /* A five-pointed star through softPoly reads as a cookie cutter, so each arm  */
+  /* is its own fat rounded wedge drawn out from the middle, and one of them is  */
+  /* bent up — waving.                                                          */
+  function anSeaStar(ctx, S) {
+    var u = S/100; wash(ctx,S,'#dff7ff','#2c93c4');
+    circ(ctx,16*u,24*u,3*u,'rgba(255,255,255,0.45)');
+    circ(ctx,21*u,15*u,2*u,'rgba(255,255,255,0.45)');
+    circ(ctx,84*u,78*u,2.5*u,'rgba(255,255,255,0.4)');
+    ell(ctx,50*u,96*u,52*u,12*u,0,'#f3d9a0');
+    var cx = 50*u, cy = 55*u, i;
+    var arms = [-90, -18, 54, 126, 198];
+    var lens = [38, 40, 36, 36, 37];
+    function arm(deg, len, col, w) {
+      var a = deg*Math.PI/180, tx = cx+Math.cos(a)*len*u, ty = cy+Math.sin(a)*len*u;
+      var bend = (deg === -18) ? -0.45 : 0;   /* the waving arm */
+      var mx = cx+Math.cos(a+bend*0.5)*len*0.55*u, my = cy+Math.sin(a+bend*0.5)*len*0.55*u;
+      if (bend) { tx = cx+Math.cos(a+bend)*len*u; ty = cy+Math.sin(a+bend)*len*u; }
+      stroke(ctx,w*u,col);
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.quadraticCurveTo(mx,my,tx,ty); ctx.stroke();
+      ctx.lineWidth = w*0.55*u;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.quadraticCurveTo(mx,my,tx,ty); ctx.stroke();
+      return [mx,my,tx,ty];
+    }
+    for (i=0; i<5; i++) arm(arms[i],lens[i],'#e5532f',19);
+    circ(ctx,cx,cy,22*u,'#e5532f');
+    var tips = [];
+    for (i=0; i<5; i++) tips.push(arm(arms[i],lens[i]-1,'#ff7d55',16));
+    circ(ctx,cx,cy,20.5*u,'#ff7d55');
+    /* bumps down each arm */
+    for (i=0; i<5; i++) {
+      for (var k=1; k<=2; k++) {
+        var t = 0.45 + k*0.2, m = tips[i];
+        var bx = (1-t)*(1-t)*cx + 2*(1-t)*t*m[0] + t*t*m[2];
+        var by = (1-t)*(1-t)*cy + 2*(1-t)*t*m[1] + t*t*m[3];
+        circ(ctx,bx,by,(2.3-k*0.4)*u,'#ffc0a3');
+      }
+    }
+    googly(ctx,41*u,47*u,8*u,0.5,-0.6);
+    googly(ctx,60*u,46*u,10*u,-0.6,0.5);
+    circ(ctx,33*u,60*u,4*u,'rgba(255,90,120,0.45)');
+    circ(ctx,68*u,60*u,4*u,'rgba(255,90,120,0.45)');
+    /* big open grin, tongue out */
+    ctx.beginPath();
+    ctx.moveTo(39*u,59*u); ctx.quadraticCurveTo(50*u,61*u,62*u,58*u);
+    ctx.quadraticCurveTo(58*u,74*u,50*u,73*u);
+    ctx.quadraticCurveTo(41*u,73*u,39*u,59*u);
+    ctx.closePath(); ctx.fillStyle = '#7a1b26'; ctx.fill();
+    ell(ctx,52*u,69*u,6*u,4.2*u,0,'#ff8fa6');
+    stroke(ctx,1.6*u,'#5a1019');
+    ctx.beginPath(); ctx.moveTo(39*u,59*u); ctx.quadraticCurveTo(50*u,61*u,62*u,58*u); ctx.stroke();
+  }
+
+  /* Side-on, because a crocodile from the front is a pair of nostrils. The jaws */
+  /* hang open in a grin with the tongue out, the eyes sit on top as two bumps,  */
+  /* and the water line cuts across the bottom so there's no body to draw.      */
+  function anCrocodile(ctx, S) {
+    var u = S/100; wash(ctx,S,'#f1fbe0','#6fb35f');
+    var dk = '#24662f', md = '#4fb153', lt = '#9bd48a';
+    function shape(pts, fill) {
+      ctx.beginPath(); ctx.moveTo(pts[0][0]*u,pts[0][1]*u);
+      for (var i=1; i<pts.length; i++) {
+        if (pts[i].length === 4) ctx.quadraticCurveTo(pts[i][0]*u,pts[i][1]*u,pts[i][2]*u,pts[i][3]*u);
+        else ctx.lineTo(pts[i][0]*u,pts[i][1]*u);
+      }
+      ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+      stroke(ctx,2.2*u,dk); ctx.stroke();
+    }
+    /* lower jaw, hinged at the back and dropped open */
+    shape([[6,62],[40,64],[86,73],[92,76,88,82],[50,86],[6,88]],lt);
+    /* inside of the mouth: the wedge between the jaws */
+    poly(ctx,[[36,58.5],[90,57],[87,73],[40,64]].map(function(p){return [p[0]*u,p[1]*u];}),'#a8283a');
+    ell(ctx,70*u,70*u,11*u,4*u,0.18,'#ff7f93');
+    /* lower teeth point up off the jaw's top edge */
+    for (var b=0; b<5; b++) {
+      var bx = 46 + b*8, by = 65.2 + b*1.6;
+      poly(ctx,[[bx*u,by*u],[(bx+2.8)*u,(by-5.5)*u],[(bx+5.6)*u,(by+1.2)*u]],'#ffffff');
+    }
+    /* head and upper jaw */
+    shape([[4,62],[2,40,18,32],[34,36],[60,40],[90,44],[98,50,92,57],[60,58],[36,59],[20,62]],md);
+    /* upper teeth hang down off the jaw */
+    for (var a=0; a<6; a++) {
+      var ax = 40 + a*8;
+      poly(ctx,[[ax*u,58.6*u],[(ax+2.8)*u,64*u],[(ax+5.6)*u,58.2*u]],'#ffffff');
+    }
+    /* scutes and nostrils */
+    circ(ctx,50*u,46*u,2.2*u,dk); circ(ctx,60*u,48*u,2*u,dk); circ(ctx,70*u,49*u,1.8*u,dk);
+    circ(ctx,16*u,50*u,2.4*u,dk); circ(ctx,24*u,54*u,2*u,dk);
+    circ(ctx,88*u,46*u,1.4*u,dk); circ(ctx,92.5*u,47*u,1.4*u,dk);
+    /* eye bumps, then the googly eyes */
+    circ(ctx,22*u,33*u,11.5*u,dk); circ(ctx,22*u,33*u,10*u,md);
+    circ(ctx,40*u,35*u,9.5*u,dk);  circ(ctx,40*u,35*u,8*u,md);
+    googly(ctx,22*u,29*u,8.5*u,0.7,0.3);
+    googly(ctx,40*u,32*u,6.4*u,-0.3,-0.7);
+    /* water */
+    ctx.beginPath(); ctx.moveTo(0,86*u);
+    for (var w=0; w<10; w++) ctx.quadraticCurveTo((w*10+5)*u,(w%2?82:90)*u,(w*10+10)*u,86*u);
+    ctx.lineTo(S,S); ctx.lineTo(0,S); ctx.closePath();
+    ctx.fillStyle = 'rgba(46,140,200,0.9)'; ctx.fill();
+  }
+
   var ANIMALS = [
     {name:'Fox',        fn:anFox},
     {name:'Cat',        fn:anCat},
@@ -1360,6 +1478,8 @@
     {name:'T. rex',     fn:anTRex},
     {name:'Tiger',      fn:anTiger},
     {name:'Snake',      fn:anSnake},
+    {name:'Sea Star',   fn:anSeaStar},
+    {name:'Crocodile',  fn:anCrocodile},
   ];
 
   /* ---- OpenMoji animals ---------------------------------------------------- */
@@ -1406,22 +1526,282 @@
 
   for (var mi=0; mi<OPENMOJI_ART.length; mi++) ANIMALS.push(svgAnimal(OPENMOJI_ART[mi]));
 
-  /* The tile you pick to get a random unseen animal, and the placeholder for   */
-  /* one you haven't found yet. Neither may hint at which animal is coming.     */
-  function artSurprise(ctx, S) {
-    var u = S/100;
+  /* ---- Food ------------------------------------------------------------------ */
+  /* Same contract and helpers as the animals. Each one gets a small face, which  */
+  /* is what makes a doughnut something to collect rather than clip art.         */
+  function snack(ctx, x, y, s, ink) {
+    ink = ink || '#3a2016'; s *= 1.35;
+    dotEye(ctx,x-s,y,s*0.32);
+    dotEye(ctx,x+s,y,s*0.32);
+    circ(ctx,x-s*1.6,y+s*0.75,s*0.36,'rgba(255,100,120,0.45)');
+    circ(ctx,x+s*1.6,y+s*0.75,s*0.36,'rgba(255,100,120,0.45)');
+    stroke(ctx,s*0.2,ink);
+    ctx.beginPath(); ctx.arc(x,y+s*0.35,s*0.45,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
+  }
+
+  function fdPizza(ctx, S) {
+    var u = S/100; wash(ctx,S,'#fff3df','#e9a35a');
+    softPoly(ctx,[[18*u,22*u],[82*u,22*u],[50*u,90*u]],'#f6c445',3*u);
+    softPoly(ctx,[[15*u,15*u],[85*u,15*u],[86*u,25*u],[14*u,25*u]],'#c9822f',4*u);
+    circ(ctx,36*u,36*u,6.5*u,'#d8402f'); circ(ctx,62*u,34*u,6*u,'#d8402f');
+    circ(ctx,52*u,68*u,5*u,'#d8402f'); circ(ctx,44*u,52*u,1.6*u,'#3c7a2a');
+    circ(ctx,66*u,52*u,1.6*u,'#3c7a2a'); circ(ctx,30*u,28*u,1.4*u,'#3c7a2a');
+    snack(ctx,50*u,46*u,5*u);
+  }
+
+  function fdDoughnut(ctx, S) {
+    var u = S/100; wash(ctx,S,'#fde7f3','#e97fb4');
+    circ(ctx,50*u,52*u,36*u,'#d99a55');
+    ctx.beginPath();
+    for (var i=0; i<=24; i++) {
+      var a = i/24*Math.PI*2, r = (31 + (i%2 ? 2.5 : -1))*u;
+      var x = 50*u+Math.cos(a)*r, y = 50*u+Math.sin(a)*r;
+      if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath(); ctx.fillStyle = '#ff8fc3'; ctx.fill();
+    ctx.lineJoin = 'round'; ctx.lineWidth = 3*u; ctx.strokeStyle = '#ff8fc3'; ctx.stroke();
+    circ(ctx,50*u,51*u,9*u,'#c27f3e'); circ(ctx,50*u,51*u,7.5*u,'#f6c0dc');
+    var sp = ['#ffffff','#5bc0eb','#fde74c','#9bc53d','#ffffff','#5bc0eb','#fde74c','#9bc53d'];
+    for (var k=0; k<14; k++) {
+      var aa = k/14*Math.PI*2+0.2, rr = (k%2 ? 23 : 17)*u;
+      ctx.save(); ctx.translate(50*u+Math.cos(aa)*rr,50*u+Math.sin(aa)*rr); ctx.rotate(aa*2.3);
+      ctx.fillStyle = sp[k%sp.length]; ctx.fillRect(-2.4*u,-0.8*u,4.8*u,1.6*u); ctx.restore();
+    }
+    snack(ctx,50*u,72*u,4.5*u,'#5a2d14');
+  }
+
+  function fdWatermelon(ctx, S) {
+    var u = S/100; wash(ctx,S,'#eafbe4','#79c36a');
+    ctx.beginPath(); ctx.arc(50*u,34*u,44*u,0.12*Math.PI,0.88*Math.PI); ctx.closePath();
+    ctx.fillStyle = '#2f8f3a'; ctx.fill();
+    ctx.beginPath(); ctx.arc(50*u,34*u,39*u,0.12*Math.PI,0.88*Math.PI); ctx.closePath();
+    ctx.fillStyle = '#e8f5c8'; ctx.fill();
+    ctx.beginPath(); ctx.arc(50*u,34*u,36*u,0.12*Math.PI,0.88*Math.PI); ctx.closePath();
+    ctx.fillStyle = '#ff5468'; ctx.fill();
+    var seeds = [[28,46],[40,58],[60,58],[72,46],[50,64],[34,50]];
+    for (var i=0; i<seeds.length; i++) ell(ctx,seeds[i][0]*u,seeds[i][1]*u,1.4*u,2.4*u,0.3,'#2b1a12');
+    snack(ctx,50*u,46*u,5*u,'#5a1018');
+  }
+
+  function fdIceCream(ctx, S) {
+    var u = S/100; wash(ctx,S,'#eaf6ff','#7fb8e8');
+    poly(ctx,[[32*u,50*u],[68*u,50*u],[50*u,94*u]],'#e2a85a');
+    stroke(ctx,1.4*u,'#b77c35'); ctx.beginPath();
+    ctx.moveTo(38*u,55*u); ctx.lineTo(58*u,80*u); ctx.moveTo(52*u,52*u); ctx.lineTo(64*u,66*u);
+    ctx.moveTo(62*u,55*u); ctx.lineTo(42*u,80*u); ctx.moveTo(48*u,52*u); ctx.lineTo(36*u,66*u);
+    ctx.stroke();
+    circ(ctx,50*u,38*u,21*u,'#ffb3cf');
+    circ(ctx,33*u,47*u,7*u,'#ffb3cf'); circ(ctx,45*u,51*u,7*u,'#ffb3cf');
+    circ(ctx,57*u,51*u,7*u,'#ffb3cf'); circ(ctx,68*u,47*u,7*u,'#ffb3cf');
+    circ(ctx,50*u,15*u,5.5*u,'#e3263f'); stroke(ctx,1.4*u,'#3c7a2a');
+    ctx.beginPath(); ctx.moveTo(50*u,10*u); ctx.quadraticCurveTo(53*u,4*u,58*u,5*u); ctx.stroke();
+    snack(ctx,50*u,38*u,5*u,'#6a2140');
+  }
+
+  function fdStrawberry(ctx, S) {
+    var u = S/100; wash(ctx,S,'#fff0f0','#f48a8a');
+    ctx.beginPath();
+    ctx.moveTo(50*u,90*u);
+    ctx.bezierCurveTo(14*u,62*u,14*u,26*u,50*u,28*u);
+    ctx.bezierCurveTo(86*u,26*u,86*u,62*u,50*u,90*u);
+    ctx.fillStyle = '#e8303f'; ctx.fill();
+    var seeds = [[34,40],[50,38],[66,40],[30,54],[70,54],[40,68],[60,68],[50,80],[38,48],[62,48]];
+    for (var i=0; i<seeds.length; i++) ell(ctx,seeds[i][0]*u,seeds[i][1]*u,1.1*u,1.8*u,0,'#ffe27a');
+    softPoly(ctx,[[32*u,28*u],[42*u,22*u],[50*u,14*u],[58*u,22*u],[68*u,28*u],[56*u,32*u],[50*u,36*u],[44*u,32*u]],'#3fa34d',1.5*u);
+    snack(ctx,50*u,54*u,5*u,'#5a1018');
+  }
+
+  function fdCupcake(ctx, S) {
+    var u = S/100; wash(ctx,S,'#f6efff','#b49bea');
+    poly(ctx,[[28*u,56*u],[72*u,56*u],[66*u,90*u],[34*u,90*u]],'#5fb6e8');
+    stroke(ctx,1.6*u,'#3f8fc2'); ctx.beginPath();
+    for (var i=0; i<5; i++) { ctx.moveTo((34+i*8)*u,58*u); ctx.lineTo((37+i*6.5)*u,88*u); }
+    ctx.stroke();
+    ell(ctx,50*u,54*u,26*u,9*u,0,'#fff7ef');
+    ell(ctx,50*u,44*u,21*u,9*u,0,'#fff7ef');
+    ell(ctx,50*u,34*u,14*u,8*u,0,'#fff7ef');
+    circ(ctx,50*u,22*u,6*u,'#e3263f');
+    var sp = ['#ff6fae','#5bc0eb','#fde74c','#9bc53d'];
+    var pos = [[34,52],[62,50],[44,40],[58,38],[50,30],[40,56],[66,56]];
+    for (var k=0; k<pos.length; k++) circ(ctx,pos[k][0]*u,pos[k][1]*u,1.4*u,sp[k%4]);
+    snack(ctx,50*u,72*u,4.6*u,'#16466a');
+  }
+
+  function fdBanana(ctx, S) {
+    var u = S/100; wash(ctx,S,'#fffbe0','#f2cf4a');
+    stroke(ctx,24*u,'#c79a12');
+    ctx.beginPath(); ctx.moveTo(18*u,30*u); ctx.quadraticCurveTo(30*u,82*u,84*u,62*u); ctx.stroke();
+    stroke(ctx,20*u,'#ffe14d');
+    ctx.beginPath(); ctx.moveTo(19*u,31*u); ctx.quadraticCurveTo(30*u,80*u,83*u,61*u); ctx.stroke();
+    stroke(ctx,4*u,'#7a5a14');
+    ctx.beginPath(); ctx.moveTo(14*u,24*u); ctx.lineTo(18*u,30*u); ctx.stroke();
+    circ(ctx,86*u,62*u,2.6*u,'#5a3e10');
+    snack(ctx,42*u,58*u,4.8*u,'#5a3e10');
+  }
+
+  function fdPancakes(ctx, S) {
+    var u = S/100; wash(ctx,S,'#fff5e6','#e3a25a');
+    ell(ctx,50*u,82*u,40*u,8*u,0,'#ffffff');
+    for (var i=0; i<4; i++) {
+      var y = (76 - i*11)*u;
+      ell(ctx,50*u,y+2*u,32*u,7*u,0,'#b06a26');
+      ell(ctx,50*u,y,32*u,7*u,0,'#f0b35e');
+    }
+    ctx.beginPath(); ctx.moveTo(22*u,40*u);
+    ctx.quadraticCurveTo(50*u,28*u,78*u,40*u); ctx.lineTo(76*u,46*u);
+    ctx.quadraticCurveTo(70*u,56*u,66*u,46*u); ctx.quadraticCurveTo(50*u,52*u,36*u,46*u);
+    ctx.quadraticCurveTo(30*u,58*u,26*u,46*u); ctx.closePath();
+    ctx.fillStyle = 'rgba(150,72,10,0.85)'; ctx.fill();
+    ctx.fillStyle = '#fff3a8'; ctx.fillRect(43*u,30*u,14*u,7*u);
+    snack(ctx,50*u,58*u,4.6*u,'#5a2d0c');
+  }
+
+  function fdAvocado(ctx, S) {
+    var u = S/100; wash(ctx,S,'#f1fbe4','#8cc56a');
+    ctx.beginPath();
+    ctx.moveTo(50*u,10*u);
+    ctx.bezierCurveTo(70*u,10*u,70*u,36*u,78*u,58*u);
+    ctx.bezierCurveTo(86*u,82*u,68*u,94*u,50*u,94*u);
+    ctx.bezierCurveTo(32*u,94*u,14*u,82*u,22*u,58*u);
+    ctx.bezierCurveTo(30*u,36*u,30*u,10*u,50*u,10*u);
+    ctx.fillStyle = '#2f5d23'; ctx.fill();
+    ctx.save(); ctx.translate(50*u,54*u); ctx.scale(0.88,0.9); ctx.translate(-50*u,-54*u);
+    ctx.fillStyle = '#d9ec8a'; ctx.fill(); ctx.restore();
+    circ(ctx,50*u,68*u,13*u,'#9a5a2a');
+    circ(ctx,46*u,64*u,3*u,'rgba(255,255,255,0.35)');
+    snack(ctx,50*u,40*u,4.6*u,'#2f3a14');
+  }
+
+  function fdFriedEgg(ctx, S) {
+    var u = S/100; wash(ctx,S,'#eef3f7','#8ea4b8');
+    ctx.beginPath();
+    var blob = [[50,12],[78,18],[90,44],[82,74],[56,88],[26,84],[10,58],[18,26]];
+    ctx.moveTo((blob[0][0]+blob[7][0])/2*u,(blob[0][1]+blob[7][1])/2*u);
+    for (var i=0; i<8; i++) {
+      var p = blob[i], q = blob[(i+1)%8];
+      ctx.quadraticCurveTo(p[0]*u,p[1]*u,(p[0]+q[0])/2*u,(p[1]+q[1])/2*u);
+    }
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    circ(ctx,52*u,52*u,18*u,'#ffb21e');
+    circ(ctx,46*u,45*u,4.5*u,'rgba(255,255,255,0.55)');
+    snack(ctx,52*u,53*u,4.6*u,'#7a3d00');
+  }
+
+  var FOODS = [
+    {name:'Pizza',      fn:fdPizza},
+    {name:'Doughnut',   fn:fdDoughnut},
+    {name:'Watermelon', fn:fdWatermelon},
+    {name:'Ice Cream',  fn:fdIceCream},
+    {name:'Strawberry', fn:fdStrawberry},
+    {name:'Cupcake',    fn:fdCupcake},
+    {name:'Banana',     fn:fdBanana},
+    {name:'Pancakes',   fn:fdPancakes},
+    {name:'Avocado',    fn:fdAvocado},
+    {name:'Fried Egg',  fn:fdFriedEgg},
+  ];
+
+
+  /* ---- Words ----------------------------------------------------------------- */
+  /* Words that are fun to say out loud. Drawn letter by letter, each tipped a   */
+  /* little and in its own colour, so a half-uncovered word is a guessing game: */
+  /* the reveal patterns that open from one side give away a letter at a time.  */
+  /* Kept to ten letters so the word still fits the circle at a readable size.  */
+  var WORD_LIST = ['Kaboom','Bonkers','Noodle','Zigzag','Squish','Wobble','Gizmo',
+                   'Lollygag','Skedaddle','Bamboozle','Kerfuffle','Hullabaloo'];
+  var WORD_WASH = [['#fff1c9','#f59e0b'],['#e0f2fe','#3b82f6'],['#fce7f3','#db2777'],
+                   ['#dcfce7','#16a34a'],['#ede9fe','#7c3aed'],['#ffedd5','#ea580c']];
+  var WORD_INK  = ['#ef4444','#f59e0b','#22c55e','#3b82f6','#a855f7','#ec4899'];
+
+  function wordArt(word, idx) {
+    return function(ctx, S) {
+      var u = S/100, w = WORD_WASH[idx % WORD_WASH.length];
+      wash(ctx,S,w[0],w[1]);
+      var size = 30*u, font = function(px) {
+        return '900 ' + px + 'px "Arial Rounded MT Bold", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif';
+      };
+      ctx.font = font(size);
+      var total = 0, widths = [], i;
+      for (i=0; i<word.length; i++) { widths.push(ctx.measureText(word[i]).width); total += widths[i]; }
+      /* fit inside the circle: about 84% of the width at the middle line */
+      if (total > 84*u) { var k = 84*u/total; size *= k; total *= k; for (i=0; i<widths.length; i++) widths[i] *= k; }
+      ctx.font = font(size);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      var x = 50*u - total/2;
+      for (i=0; i<word.length; i++) {
+        var cx = x + widths[i]/2, cy = 52*u + (i%2 ? -1 : 1)*size*0.06;
+        ctx.save(); ctx.translate(cx,cy); ctx.rotate((i%2 ? 0.09 : -0.07));
+        ctx.lineWidth = size*0.16; ctx.strokeStyle = '#ffffff'; ctx.strokeText(word[i],0,0);
+        ctx.fillStyle = WORD_INK[(i+idx) % WORD_INK.length]; ctx.fillText(word[i],0,0);
+        ctx.restore();
+        x += widths[i];
+      }
+    };
+  }
+
+  var WORDS = [];
+  for (var wi=0; wi<WORD_LIST.length; wi++) WORDS.push({name: WORD_LIST[wi], fn: wordArt(WORD_LIST[wi], wi)});
+
+  /* ---- Categories -------------------------------------------------------------- */
+  /* Everything you can reveal belongs to one of these, and every category works  */
+  /* the same way: a surprise tile deals one you haven't found yet, and once found */
+  /* it's in the collection to pick on purpose. The patterns used to be the odd   */
+  /* ones out — always on display, never discovered. Now they're found like the   */
+  /* rest. Names must be unique across categories: the found list is one list.    */
+  var CATEGORIES = [
+    {id:'animal',  label:'Animals',  one:'animal',  tile:'An animal', items:ANIMALS,  from:'#7c3aed', to:'#2563eb'},
+    {id:'food',    label:'Food',     one:'food',    tile:'Food',      items:FOODS,    from:'#fb923c', to:'#e11d48'},
+    {id:'word',    label:'Words',    one:'word',    tile:'A word',    items:WORDS,    from:'#14b8a6', to:'#2563eb'},
+    {id:'pattern', label:'Patterns', one:'pattern', tile:'A pattern', items:ARTWORKS, from:'#ec4899', to:'#9333ea'},
+  ];
+  var ANY = {id:'any', label:'Anything', one:'surprise', tile:'Anything!', from:'#f59e0b', to:'#db2777'};
+  var ITEMS = [];
+  (function indexItems() {
+    for (var c=0; c<CATEGORIES.length; c++) {
+      for (var i=0; i<CATEGORIES[c].items.length; i++) {
+        CATEGORIES[c].items[i].cat = CATEGORIES[c].id;
+        ITEMS.push(CATEGORIES[c].items[i]);
+      }
+    }
+  }());
+  function catById(id) {
+    for (var c=0; c<CATEGORIES.length; c++) if (CATEGORIES[c].id === id) return CATEGORIES[c];
+    return id === 'any' ? ANY : null;
+  }
+
+  /* The tile you pick to get a random unseen one of a category, and the        */
+  /* placeholder for one you haven't found yet. Neither may hint at which is     */
+  /* coming — the emblem says only which category.                              */
+  function artSurprise(ctx, S, cat) {
+    var u = S/100, W = 'rgba(255,255,255,0.95)';
     var g = ctx.createLinearGradient(0,0,S,S);
-    g.addColorStop(0,'#7c3aed'); g.addColorStop(1,'#2563eb');
+    g.addColorStop(0,cat.from); g.addColorStop(1,cat.to);
     ctx.fillStyle = g; ctx.fillRect(0,0,S,S);
-    circ(ctx,50*u,60*u,19*u,'rgba(255,255,255,0.95)');
-    circ(ctx,26*u,41*u,8*u,'rgba(255,255,255,0.95)');
-    circ(ctx,41*u,25*u,8*u,'rgba(255,255,255,0.95)');
-    circ(ctx,59*u,25*u,8*u,'rgba(255,255,255,0.95)');
-    circ(ctx,74*u,41*u,8*u,'rgba(255,255,255,0.95)');
-    ctx.fillStyle = '#5b21b6';
-    ctx.font = 'bold ' + (24*u) + 'px -apple-system, Helvetica, Arial, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('?', 50*u, 61*u);
+    var font = function(px) { return 'bold ' + px + 'px -apple-system, Helvetica, Arial, sans-serif'; };
+    if (cat.id === 'animal') {
+      circ(ctx,50*u,60*u,19*u,W);
+      circ(ctx,26*u,41*u,8*u,W); circ(ctx,41*u,25*u,8*u,W);
+      circ(ctx,59*u,25*u,8*u,W); circ(ctx,74*u,41*u,8*u,W);
+      ctx.fillStyle = cat.to; ctx.font = font(24*u); ctx.fillText('?', 50*u, 61*u);
+    } else if (cat.id === 'food') {
+      circ(ctx,50*u,50*u,32*u,W);
+      circ(ctx,50*u,50*u,14*u,cat.to);
+      ctx.fillStyle = W; ctx.font = font(20*u); ctx.fillText('?', 50*u, 51*u);
+    } else if (cat.id === 'word') {
+      ctx.fillStyle = W; ctx.font = font(40*u); ctx.fillText('Aa', 50*u, 46*u);
+      ctx.font = font(26*u); ctx.fillText('?', 50*u, 78*u);
+    } else if (cat.id === 'pattern') {
+      for (var p=0; p<8; p++) {
+        var a = p/8*Math.PI*2;
+        ell(ctx,50*u+Math.cos(a)*18*u,50*u+Math.sin(a)*18*u,12*u,6*u,a,W);
+      }
+      circ(ctx,50*u,50*u,12*u,cat.from);
+      ctx.fillStyle = W; ctx.font = font(18*u); ctx.fillText('?', 50*u, 51*u);
+    } else {
+      ctx.fillStyle = W; ctx.font = font(64*u); ctx.fillText('?', 50*u, 54*u);
+      circ(ctx,22*u,24*u,4*u,W); circ(ctx,80*u,30*u,3*u,W); circ(ctx,74*u,80*u,4*u,W); circ(ctx,24*u,76*u,3*u,W);
+    }
   }
 
   function artLocked(ctx, S) {
@@ -1488,12 +1868,11 @@
   var keepAliveId = null;
   var wakeBanner  = document.getElementById('wakeBanner');
   var wakeBannerClose = document.getElementById('wakeBannerClose');
-  var SURPRISE    = '__surprise__';  /* stands in for a preset name in settings */
-  var ANIMAL_KEY  = 'animal:';       /* ditto, for a deliberately-picked animal */
-  var surpriseMode= false;
-  var pendingAnimal = null; /* the animal this run will reveal — not shown yet  */
-  var chosenAnimal  = null; /* a found animal picked on purpose from the sheet  */
-  var surpriseWrap  = null;
+  var SURPRISE_KEY = 'surprise:';  /* + category id, in saved settings          */
+  var ITEM_KEY     = 'item:';      /* + item name, for one picked on purpose    */
+  var surpriseCat  = null;  /* the category a surprise run deals from, or null  */
+  var pendingItem  = null;  /* what this run will reveal — not shown yet        */
+  var chosenItem   = null;  /* a found item picked on purpose from the sheet    */
 
   /* ---- Preview ----------------------------------------------------------- */
   function showPreview(src, srcIsUpload) {
@@ -1544,49 +1923,57 @@
     } catch (e) {}
   }
 
-  /* ---- Which animals have been found, and which one comes next ------------- */
+  /* ---- What has been found, and what comes next ------------------------------ */
   /* Its own key, not part of the settings blob: settings are preferences you'd  */
   /* happily see reset, this is a record you'd be annoyed to lose. Same wrapping */
   /* as above — Safari private mode throws rather than returning null.           */
-  /* The blob also carries the deck pickSurpriseAnimal() deals from, because a   */
-  /* deck that didn't survive a reload would re-deal from a full set every time. */
+  /* The key still says "animals" because that's what it held first; keeping it  */
+  /* means nothing already found is lost. It now holds every category's finds,   */
+  /* plus one deck per category (see pickSurprise). An older blob had a single   */
+  /* animal deck under "deck"; that is read as the animal deck.                  */
   /* Unknown names are dropped on the way in, so a deck saved before the set     */
-  /* grew (or shrank) can't hand back an animal that no longer exists.           */
-  var LS_ANIMALS = 'revealTimer.animals.v1';
-  var foundList  = [];
-  var animalDeck = [];    /* names still to come in this pass through the set   */
-  var lastShown  = null;  /* what the last surprise dealt, so it can't repeat   */
+  /* grew (or shrank) can't hand back something that no longer exists.          */
+  var LS_FOUND  = 'revealTimer.animals.v1';
+  var foundList = [];
+  var decks     = {};   /* category id -> names still to come in this pass      */
+  var lastShown = {};   /* category id -> what it last dealt, so no repeat     */
 
-  function isKnownAnimal(name) {
-    for (var i=0; i<ANIMALS.length; i++) if (ANIMALS[i].name === name) return true;
-    return false;
+  function itemByName(name) {
+    for (var i=0; i<ITEMS.length; i++) if (ITEMS[i].name === name) return ITEMS[i];
+    return null;
   }
 
   function knownNames(value) {
     var out = [], i;
     if (Object.prototype.toString.call(value) !== '[object Array]') return out;
     for (i=0; i<value.length; i++) {
-      if (isKnownAnimal(value[i]) && out.indexOf(value[i]) < 0) out.push(value[i]);
+      if (itemByName(value[i]) && out.indexOf(value[i]) < 0) out.push(value[i]);
     }
     return out;
   }
 
-  (function loadAnimalState() {
+  (function loadFoundState() {
     var obj = null;
     try {
-      var raw = window.localStorage.getItem(LS_ANIMALS);
+      var raw = window.localStorage.getItem(LS_FOUND);
       obj = raw ? JSON.parse(raw) : null;
     } catch (e) { obj = null; }
     if (!obj) return;
-    foundList  = knownNames(obj.found);
-    animalDeck = knownNames(obj.deck);
-    lastShown  = isKnownAnimal(obj.last) ? obj.last : null;
+    foundList = knownNames(obj.found);
+    var d = obj.decks || {}, l = obj.lastShown || {};
+    if (obj.deck && !d.animal) d.animal = obj.deck;
+    if (obj.last && !l.animal) l.animal = obj.last;
+    for (var c=0; c<CATEGORIES.length; c++) {
+      var id = CATEGORIES[c].id;
+      decks[id] = knownNames(d[id]);
+      if (itemByName(l[id])) lastShown[id] = l[id];
+    }
   }());
 
-  function saveAnimalState() {
+  function saveFoundState() {
     try {
-      window.localStorage.setItem(LS_ANIMALS, JSON.stringify({
-        found: foundList, deck: animalDeck, last: lastShown
+      window.localStorage.setItem(LS_FOUND, JSON.stringify({
+        found: foundList, decks: decks, lastShown: lastShown
       }));
     } catch (e) {}
   }
@@ -1599,49 +1986,57 @@
   function markFound(name) {
     if (isFound(name)) return false;
     foundList.push(name);
-    saveAnimalState();
+    saveFoundState();
     return true;
   }
 
-  /* Prefer an animal they haven't met: until the set is complete that alone     */
-  /* makes every reveal a new one. Afterwards the pool used to reopen to all     */
-  /* sixteen and get drawn from at random, which is more repetitive than it      */
-  /* sounds — a 1-in-16 chance of handing back the animal you just had, and over */
-  /* a week of reveals you'd typically meet 13 of the 16 while one stayed away    */
-  /* for a fortnight. So past the end of the set it deals from a shuffled deck:  */
-  /* every animal comes up once per pass, and a reshuffle never puts the one you */
-  /* just saw on top.                                                            */
-  function pickSurpriseAnimal() {
-    var pool = [], i, next;
-    for (i=0; i<ANIMALS.length; i++) if (!isFound(ANIMALS[i].name)) pool.push(ANIMALS[i]);
+  function foundIn(cat) {
+    var n = 0;
+    for (var i=0; i<cat.items.length; i++) if (isFound(cat.items[i].name)) n++;
+    return n;
+  }
+
+  /* Prefer one they haven't met: until a category is complete that alone makes */
+  /* every reveal a new one. Past the end it deals from a shuffled deck per      */
+  /* category instead of rolling a die — a die hands back what you just had and  */
+  /* leaves some waiting for weeks — and a reshuffle never puts the one you just */
+  /* saw on top. "Anything" pools every category's unfound ones; once all are   */
+  /* found it picks a category at random and deals from that one's deck.        */
+  function pickSurprise(catId) {
+    var cats = catId === 'any' ? CATEGORIES : [catById(catId) || CATEGORIES[0]];
+    var pool = [], c, i, next;
+    for (c=0; c<cats.length; c++) {
+      for (i=0; i<cats[c].items.length; i++) if (!isFound(cats[c].items[i].name)) pool.push(cats[c].items[i]);
+    }
     if (pool.length) {
       next = pool[Math.floor(Math.random()*pool.length)];
     } else {
-      if (!animalDeck.length) animalDeck = shuffledDeck();
-      next = animalByName(animalDeck.pop()) || ANIMALS[0];
+      var cat = cats[Math.floor(Math.random()*cats.length)];
+      if (!decks[cat.id] || !decks[cat.id].length) decks[cat.id] = shuffledDeck(cat);
+      next = itemByName(decks[cat.id].pop()) || cat.items[0];
     }
-    lastShown = next.name;
-    saveAnimalState();
+    lastShown[next.cat] = next.name;
+    saveFoundState();
     return next;
   }
 
-  /* Fisher-Yates over the whole set. The deck is dealt off the end, so it's the */
-  /* last entry that must not be the animal they just saw.                       */
-  function shuffledDeck() {
+  /* Fisher-Yates over one category. The deck is dealt off the end, so it's the  */
+  /* last entry that must not be the one they just saw.                          */
+  function shuffledDeck(cat) {
     var deck = [], i, j, tmp;
-    for (i=0; i<ANIMALS.length; i++) deck.push(ANIMALS[i].name);
+    for (i=0; i<cat.items.length; i++) deck.push(cat.items[i].name);
     for (i=deck.length-1; i>0; i--) {
       j = Math.floor(Math.random()*(i+1));
       tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
     }
-    if (deck.length > 1 && deck[deck.length-1] === lastShown) {
+    if (deck.length > 1 && deck[deck.length-1] === lastShown[cat.id]) {
       tmp = deck[deck.length-1]; deck[deck.length-1] = deck[0]; deck[0] = tmp;
     }
     return deck;
   }
 
   function updateCollectionCount() {
-    collectionCount.textContent = foundList.length + ' of ' + ANIMALS.length;
+    collectionCount.textContent = foundList.length + ' of ' + ITEMS.length;
   }
 
   /* ---- Background swatches ----------------------------------------------- */
@@ -1760,8 +2155,8 @@
     reader.onload = function(e) {
       var image = new Image();
       image.onload = function() {
-        selectedImg=image; isUpload=true; selectedArt=null; surpriseMode=false;
-        chosenAnimal=null;
+        selectedImg=image; isUpload=true; selectedArt=null; surpriseCat=null;
+        chosenItem=null;
         deselectAllArt();
         showPreview(image, true);
         setPreviewLabel('');
@@ -1781,15 +2176,15 @@
     cancelAnimationFrame(rafId);   /* stop any celebration still animating */
     if (soundToggle.checked) { ensureAudioCtx(); playStartSound(); }
     saveSettings();
-    /* A surprise animal is chosen here, not when the tile was tapped — so       */
-    /* nothing on screen between picking "Surprise animal" and the reveal can    */
-    /* give it away. One picked from the collection is known already.            */
-    pendingAnimal = chosenAnimal;
+    /* A surprise is chosen here, not when the tile was tapped — so nothing on   */
+    /* screen between picking a surprise tile and the reveal can give it away.  */
+    /* One picked from the collection is known already.                         */
+    pendingItem = chosenItem;
     revealName.className = 'reveal-name';
-    if (surpriseMode) {
-      pendingAnimal = pickSurpriseAnimal();
+    if (surpriseCat) {
+      pendingItem = pickSurprise(surpriseCat);
       var ac = document.createElement('canvas'); ac.width=320; ac.height=320;
-      try { pendingAnimal.fn(ac.getContext('2d'), 320); } catch (e) {}
+      try { pendingItem.fn(ac.getContext('2d'), 320); } catch (e) {}
       selectedImg = ac; isUpload = false;
     }
     pickRevealPattern();
@@ -1842,107 +2237,66 @@
     running=false; celebrating=false; done=false; cancelAnimationFrame(rafId);
     timerView.className='timer-view'; setup.style.display='';
     revealName.className='reveal-name';
-    /* Back on the setup screen the surprise tile must show the paw print again, */
-    /* not the animal that was just revealed.                                    */
-    if (surpriseMode && artPickers[SURPRISE]) artPickers[SURPRISE]();
+    /* Back on the setup screen the surprise tile must show its "?" again, not  */
+    /* what was just revealed.                                                  */
+    if (surpriseCat && artPickers[SURPRISE_KEY+surpriseCat]) artPickers[SURPRISE_KEY+surpriseCat]();
     setPauseButton(false); ctx.clearRect(0,0,canvas.width,canvas.height);
     releaseWakeLock(); stopKeepAlive();
   });
 
-  /* ---- Build thumbnails — wrapped so one bad art can't break the others -- */
-  var artPickers = {};   /* preset name -> select(), so saved settings restore */
+  /* ---- Surprise tiles — wrapped so one bad art can't break the others ----- */
+  var artPickers = {};   /* settings key -> select(), so saved settings restore */
 
-  /* Clearing every tile's class is what deselects; the surprise tile has an   */
-  /* extra class to keep, so all three former inline loops go through here.    */
   function deselectAllArt() {
     var all = artRow.children;
-    for (var i=0; i<all.length; i++) {
-      all[i].className = (all[i] === surpriseWrap) ? 'art-thumb-wrap surprise' : 'art-thumb-wrap';
-    }
+    for (var i=0; i<all.length; i++) all[i].className = 'art-thumb-wrap surprise';
   }
 
-  /* The surprise tile goes first, before the presets, because it's the one    */
-  /* this app is now mostly for. Picking it shows the paw print — NOT the      */
-  /* animal, which isn't even chosen until Start.                             */
-  (function buildSurpriseTile() {
-    surpriseWrap = document.createElement('div');
-    surpriseWrap.className = 'art-thumb-wrap surprise';
-    var tc = document.createElement('canvas');
-    tc.width = 62; tc.height = 62;
-    try { artSurprise(tc.getContext('2d'), 62); } catch (e) {}
-    var lbl = document.createElement('span');
-    lbl.textContent = 'Surprise animal';
-    surpriseWrap.appendChild(tc); surpriseWrap.appendChild(lbl);
-    artRow.appendChild(surpriseWrap);
-    function pick() {
-      deselectAllArt();
-      surpriseWrap.className = 'art-thumb-wrap surprise selected';
-      var oc = document.createElement('canvas'); oc.width=320; oc.height=320;
-      try { artSurprise(oc.getContext('2d'), 320); } catch (e) {}
-      selectedImg=oc; isUpload=false; selectedArt=SURPRISE; surpriseMode=true;
-      chosenAnimal=null;
-      showPreview(oc, false);
-      setPreviewLabel('');
-      uploadLabel.textContent='Upload your own photo';
-      startBtn.disabled=false; startBtn.textContent='Start';
-      saveSettings();
-    }
-    artPickers[SURPRISE] = pick;
-    surpriseWrap.addEventListener('click', pick);
-  }());
-
-  ARTWORKS.forEach(function(art) {
+  /* One tile per category, "Anything" first. Picking one shows its "?" — NOT */
+  /* what's behind it, which isn't even chosen until Start.                   */
+  [ANY].concat(CATEGORIES).forEach(function(cat) {
     var wrap = document.createElement('div');
-    wrap.className = 'art-thumb-wrap';
+    wrap.className = 'art-thumb-wrap surprise';
     var tc = document.createElement('canvas');
     tc.width = 62; tc.height = 62;
-    try { art.fn(tc.getContext('2d'), 62); } catch(e) { /* skip bad art */ }
+    try { artSurprise(tc.getContext('2d'), 62, cat); } catch (e) {}
     var lbl = document.createElement('span');
-    lbl.textContent = art.name;
-    wrap.appendChild(tc); wrap.appendChild(lbl); artRow.appendChild(wrap);
+    lbl.textContent = cat.tile;
+    wrap.appendChild(tc); wrap.appendChild(lbl);
+    artRow.appendChild(wrap);
     function pick() {
       deselectAllArt();
-      wrap.className='art-thumb-wrap selected';
-      var oc=document.createElement('canvas'); oc.width=320; oc.height=320;
-      try { art.fn(oc.getContext('2d'), 320); } catch(e) { /* leave blank */ }
-      selectedImg=oc; isUpload=false; selectedArt=art.name; surpriseMode=false;
-      chosenAnimal=null;
+      wrap.className = 'art-thumb-wrap surprise selected';
+      var oc = document.createElement('canvas'); oc.width=320; oc.height=320;
+      try { artSurprise(oc.getContext('2d'), 320, cat); } catch (e) {}
+      selectedImg=oc; isUpload=false; selectedArt=SURPRISE_KEY+cat.id; surpriseCat=cat.id;
+      chosenItem=null;
       showPreview(oc, false);
       setPreviewLabel('');
       uploadLabel.textContent='Upload your own photo';
       startBtn.disabled=false; startBtn.textContent='Start';
       saveSettings();
     }
-    artPickers[art.name] = pick;
+    artPickers[SURPRISE_KEY+cat.id] = pick;
     wrap.addEventListener('click', pick);
   });
 
-  /* ---- Picking one animal on purpose --------------------------------------- */
-  /* Reachable only from the collection sheet, and only for an animal already    */
-  /* found — the surprise is still the only way to meet a new one. Past that     */
-  /* point it behaves exactly like a preset tile: it becomes the selection, is   */
-  /* previewed, and is remembered for next time.                                 */
-  function pickAnimal(animal) {
+  /* ---- Picking one on purpose ----------------------------------------------- */
+  /* Reachable only from the collection sheet, and only for something already    */
+  /* found — a surprise is still the only way to meet a new one. Past that point */
+  /* it becomes the selection, is previewed and named, and is remembered.        */
+  function pickItem(item) {
     deselectAllArt();
     var oc = document.createElement('canvas'); oc.width=320; oc.height=320;
-    try { animal.fn(oc.getContext('2d'), 320); } catch (e) {}
-    selectedImg=oc; isUpload=false; selectedArt=ANIMAL_KEY+animal.name;
-    surpriseMode=false; chosenAnimal=animal;
+    try { item.fn(oc.getContext('2d'), 320); } catch (e) {}
+    selectedImg=oc; isUpload=false; selectedArt=ITEM_KEY+item.name;
+    surpriseCat=null; chosenItem=item;
     showPreview(oc, false);
-    setPreviewLabel(animal.name);
+    setPreviewLabel(item.name);
     uploadLabel.textContent='Upload your own photo';
     startBtn.disabled=false; startBtn.textContent='Start';
     saveSettings();
   }
-
-  function animalByName(name) {
-    for (var i=0; i<ANIMALS.length; i++) if (ANIMALS[i].name === name) return ANIMALS[i];
-    return null;
-  }
-
-  ANIMALS.forEach(function(animal) {
-    artPickers[ANIMAL_KEY+animal.name] = function() { pickAnimal(animal); };
-  });
 
   /* ---- Restore last-used settings ----------------------------------------- */
   (function restoreSettings() {
@@ -1961,13 +2315,24 @@
         }
       }
       if (typeof s.sound === 'boolean') soundToggle.checked = s.sound;
-      /* A saved animal only comes back if it's still in the found list. If the  */
-      /* collection was cleared, restoring it would put an animal they haven't   */
-      /* earned on the setup screen, named.                                      */
-      if (s.art && artPickers[s.art]) {
-        var savedAnimal = s.art.indexOf(ANIMAL_KEY) === 0
-          ? animalByName(s.art.slice(ANIMAL_KEY.length)) : null;
-        if (!savedAnimal || isFound(savedAnimal.name)) artPickers[s.art]();
+      /* Older saves used other keys: "__surprise__" for the animal surprise,    */
+      /* "animal:Fox" for a picked animal, and a bare name for a preset pattern. */
+      /* A pattern that was saved as the selection was in use, so it counts as  */
+      /* found rather than vanishing now that patterns are discovered too.      */
+      var key = s.art;
+      if (key === '__surprise__') key = SURPRISE_KEY + 'animal';
+      else if (key && key.indexOf('animal:') === 0) key = ITEM_KEY + key.slice(7);
+      else if (key && key.indexOf(SURPRISE_KEY) !== 0 && key.indexOf(ITEM_KEY) !== 0 && itemByName(key)) {
+        markFound(key); key = ITEM_KEY + key;
+      }
+      /* A saved item only comes back if it's still in the found list. If the  */
+      /* collection was cleared, restoring it would put something they haven't */
+      /* earned on the setup screen, named.                                    */
+      if (key && key.indexOf(ITEM_KEY) === 0) {
+        var saved = itemByName(key.slice(ITEM_KEY.length));
+        if (saved && isFound(saved.name)) pickItem(saved);
+      } else if (key && artPickers[key]) {
+        artPickers[key]();
       }
     } catch (e) {
     } finally { restoring = false; }
@@ -1978,25 +2343,30 @@
   /* haven't earned. Found ones are tappable and open at full size.              */
   function buildCollection() {
     while (collectionGrid.firstChild) collectionGrid.removeChild(collectionGrid.firstChild);
-    var all = foundList.length === ANIMALS.length;
+    var all = foundList.length === ITEMS.length;
     collectionSub.textContent = all
-      ? 'You found all ' + ANIMALS.length + '! 🎉'
-      : foundList.length + ' of ' + ANIMALS.length + ' found';
+      ? 'You found all ' + ITEMS.length + '! 🎉'
+      : foundList.length + ' of ' + ITEMS.length + ' found';
 
-    ANIMALS.forEach(function(animal) {
-      var found = isFound(animal.name);
-      var item = document.createElement('div');
-      item.className = 'collection-item' + (found ? ' found' : '');
-      var tc = document.createElement('canvas');
-      tc.width = 62; tc.height = 62;
-      try { (found ? animal.fn : artLocked)(tc.getContext('2d'), 62); } catch (e) {}
-      var lbl = document.createElement('span');
-      lbl.textContent = found ? animal.name : '???';
-      item.appendChild(tc); item.appendChild(lbl);
-      if (found) {
-        item.addEventListener('click', function() { openZoom(animal); });
-      }
-      collectionGrid.appendChild(item);
+    CATEGORIES.forEach(function(cat) {
+      var head = document.createElement('div');
+      head.className = 'collection-head';
+      var n = foundIn(cat);
+      head.textContent = cat.label + ' · ' + n + ' of ' + cat.items.length + (n === cat.items.length ? ' ⭐' : '');
+      collectionGrid.appendChild(head);
+      cat.items.forEach(function(item) {
+        var found = isFound(item.name);
+        var el = document.createElement('div');
+        el.className = 'collection-item' + (found ? ' found' : '');
+        var tc = document.createElement('canvas');
+        tc.width = 62; tc.height = 62;
+        try { (found ? item.fn : artLocked)(tc.getContext('2d'), 62); } catch (e) {}
+        var lbl = document.createElement('span');
+        lbl.textContent = found ? item.name : '???';
+        el.appendChild(tc); el.appendChild(lbl);
+        if (found) el.addEventListener('click', function() { openZoom(item); });
+        collectionGrid.appendChild(el);
+      });
     });
   }
 
@@ -2029,7 +2399,7 @@
     var animal = zoomAnimal;
     collectionSheet.className = 'sheet';
     closeZoom();
-    pickAnimal(animal);
+    pickItem(animal);
     beginRun();
   });
 
@@ -2041,7 +2411,7 @@
     var animal = zoomAnimal;
     collectionSheet.className = 'sheet';
     closeZoom();
-    pickAnimal(animal);
+    pickItem(animal);
   });
 
   collectionBtn.addEventListener('click', function() {
@@ -2073,8 +2443,8 @@
   function onDone() {
     timeDisplay.className='time-display done';
     if (soundToggle.checked) playDoneSound();
-    if (pendingAnimal) {
-      var isNew = markFound(pendingAnimal.name);
+    if (pendingItem) {
+      var isNew = markFound(pendingItem.name);
       updateCollectionCount(); buildCollection();
       revealName.innerHTML = '';
       if (isNew) {
@@ -2082,7 +2452,7 @@
         badge.className = 'new-badge'; badge.textContent = 'NEW';
         revealName.appendChild(badge);
       }
-      revealName.appendChild(document.createTextNode(pendingAnimal.name));
+      revealName.appendChild(document.createTextNode(pendingItem.name));
       revealName.className = 'reveal-name visible';
     }
     celebrating=true; celebStart=Date.now(); celebFade=1;

@@ -8,6 +8,10 @@
 // its "done" state with a visibly-drawn celebration animation across several
 // completions (each completion picks one of the animations at random).
 //
+// Plus the categories: one surprise tile per category (and "Anything"), each
+// dealing only from its own category; everything in every category draws;
+// and saves from before categories existed still load.
+//
 // Plus, once the collection is complete: the surprise deals from a shuffled
 // deck rather than rolling a die, and the mask that hides the picture is one of
 // four patterns, each of which still covers the fraction of the picture that
@@ -136,16 +140,43 @@ const CANVAS_VARIANCE = (id) => {
   return sumSq / n - mean * mean;
 };
 
-// Pick the surprise tile, shorten the run, silence the chime — the opening
-// move of most of the animal sections.
-const armSurprise = async (page, tile = 0) => {
+// The setup screen's tiles, in order: one surprise per category, "Anything" first.
+const TILE = { any: 0, animal: 1, food: 2, word: 3, pattern: 4 };
+const TILE_LABELS = ['Anything!', 'An animal', 'Food', 'A word', 'A pattern'];
+
+// Pick a surprise tile (the animal one unless told otherwise), shorten the run,
+// silence the chime — the opening move of most of the animal sections.
+const armSurprise = async (page, tile = TILE.animal) => {
   await page.locator('.art-thumb-wrap').nth(tile).click();
   await shortDuration(page);
   await page.evaluate(() => { document.getElementById('soundToggle').checked = false; });
 };
 
-// ---- 1. every preset artwork actually draws something (thumbnails) ----
-section('preset artworks', async (t) => {
+// Put one specific thing on the setup screen. Patterns are no longer tiles of
+// their own — like everything else they're found first and then picked from
+// the collection — so this marks it found, reloads, and picks it there.
+const pickFound = async (page, name) => {
+  await page.evaluate(n => {
+    const k = 'revealTimer.animals.v1';
+    const v = JSON.parse(window.localStorage.getItem(k) || '{}');
+    v.found = (v.found || []).concat([n]);
+    window.localStorage.setItem(k, JSON.stringify(v));
+  }, name);
+  await page.reload();
+  await page.evaluate(n => {
+    document.getElementById('collectionBtn').click();
+    [...document.querySelectorAll('.collection-item.found')]
+      .find(i => i.querySelector('span').textContent === n).click();
+    document.getElementById('zoomSelect').click();
+  }, name);
+};
+
+// A 2x2 PNG, for the upload checks.
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDK+mmyAAAAABJRU5ErkJggg==', 'base64');
+
+// ---- 1. every surprise tile actually draws something (thumbnails) ----
+section('surprise tiles', async (t) => {
   const page = await openPage();
   const thumbs = await page.evaluate(() => {
     const wraps = document.querySelectorAll('.art-thumb-wrap');
@@ -162,9 +193,10 @@ section('preset artworks', async (t) => {
       return { name: w.querySelector('span').textContent, variance: sumSq / n - mean * mean };
     });
   });
-  t.ok(thumbs.length >= 14, `at least 14 presets present (found ${thumbs.length})`);
+  t.eq(JSON.stringify(thumbs.map(x => x.name)), JSON.stringify(TILE_LABELS), 'one surprise tile per category, "Anything" first');
   const blank = thumbs.filter(t2 => t2.variance < 50);
-  t.ok(blank.length === 0, blank.length ? `presets with near-blank thumbnails: ${blank.map(b => b.name).join(', ')}` : 'no preset rendered blank/broken');
+  t.ok(blank.length === 0, blank.length ? `tiles with near-blank thumbnails: ${blank.map(b => b.name).join(', ')}` : 'no tile rendered blank/broken');
+  t.eq(new Set(thumbs.map(x => Math.round(x.variance))).size, thumbs.length, 'the tiles all look different');
   t.ok(page.errors.length === 0, `no page errors while building thumbnails${page.errors.length ? ': ' + page.errors.join(' | ') : ''}`);
   await page.close();
 });
@@ -191,8 +223,7 @@ section('background swatches', async (t) => {
 section('timer completion + celebration animation', async (t) => {
   const trial = async (n) => {
     const page = await openPage({ clock: true });
-    // +1 to skip the surprise tile, which section 11 covers on its own.
-    await page.locator('.art-thumb-wrap').nth(1 + (n % 14)).click();
+    await page.locator('.art-thumb-wrap').nth(n % TILE_LABELS.length).click();
     await shortDuration(page);
     await page.evaluate(() => { document.getElementById('soundToggle').checked = false; });
     await page.locator('#startBtn').click();
@@ -262,7 +293,7 @@ section('saved settings', async (t) => {
   await blocked.close();
 });
 
-// ---- 5. preset strip wraps instead of scrolling sideways ----
+// ---- 5. the surprise tiles fit one row; nothing scrolls sideways ----
 section('layout', async (t) => {
   const page = await openPage({ viewport: { width: 390, height: 844 } }); // iPhone-ish
   const layout = await page.evaluate(() => {
@@ -276,8 +307,8 @@ section('layout', async (t) => {
       perRow: [...document.querySelectorAll('.bg-row')].map(r => r.querySelectorAll('.bg-swatch').length),
     };
   });
-  t.ok(layout.rows > 1, `preset thumbnails wrap onto multiple lines (${layout.rows} rows)`);
-  t.ok(!layout.overflowsSideways, 'preset strip has no sideways scroll');
+  t.eq(layout.rows, 1, 'all five surprise tiles fit in one row on a phone');
+  t.ok(!layout.overflowsSideways, 'the tile strip has no sideways scroll');
   t.ok(!layout.pageOverflows, 'page has no horizontal scroll');
   t.eq(layout.swatchRows, 2, 'backgrounds are split into two rows');
   t.eq(JSON.stringify(layout.perRow), JSON.stringify([6, 6]), 'six swatches in each row');
@@ -436,9 +467,7 @@ section('chimes', async (t) => {
       section(`celebration contrast: ${art} + ${effect}`, async (t) => {
         // Pin the random pick so each effect gets exercised.
         const page = await openPage({ clock: true, init: [[v => { Math.random = () => v; }, pin]] });
-        const idx = await page.evaluate(n =>
-          [...document.querySelectorAll('.art-thumb-wrap span')].findIndex(s => s.textContent === n), art);
-        await page.locator('.art-thumb-wrap').nth(idx).click();
+        await pickFound(page, art);
         await page.evaluate(() => { document.getElementById('soundToggle').checked = false; });
         await shortDuration(page);
         await page.locator('#startBtn').click();
@@ -487,13 +516,21 @@ section('chimes', async (t) => {
 const ANIMAL_NAMES = [
   'Fox', 'Cat', 'Penguin', 'Owl', 'Panda', 'Frog', 'Sloth', 'Axolotl',
   'Narwhal', 'Blobfish', 'Platypus', 'Chameleon', 'Shark', 'T. rex',
-  'Tiger', 'Snake',
+  'Tiger', 'Snake', 'Sea Star', 'Crocodile',
   // OpenMoji: the monkey, then the animal-and-a-thing pictures the kids picked.
   'Monkey', 'Cool Monkey', 'Doughnut Sloth', 'Birthday Hamster', 'Ice-cream Croc',
   'Pizza Shark', 'Cocoa Owl', 'Rock-star Elephant', 'Fancy Hamster', 'King Koala',
   'Shady Rabbit', 'Bath-time Hedgehog',
 ];
 const N = ANIMAL_NAMES.length;
+const FOOD_NAMES = ['Pizza', 'Doughnut', 'Watermelon', 'Ice Cream', 'Strawberry', 'Cupcake',
+  'Banana', 'Pancakes', 'Avocado', 'Fried Egg'];
+const WORD_NAMES = ['Kaboom', 'Bonkers', 'Noodle', 'Zigzag', 'Squish', 'Wobble', 'Gizmo',
+  'Lollygag', 'Skedaddle', 'Bamboozle', 'Kerfuffle', 'Hullabaloo'];
+const PATTERN_NAMES = ['Mandala', 'Sunburst', 'Aurora', 'Mosaic', 'Spiral', 'Waves', 'Prism',
+  'Ember', 'Forest', 'Neon', 'Nebula', 'Sunset', 'Terrazzo', 'Kaleidoscope'];
+const ALL_NAMES = [...ANIMAL_NAMES, ...FOOD_NAMES, ...WORD_NAMES, ...PATTERN_NAMES];
+const TOTAL = ALL_NAMES.length;
 
 section('surprise animals', async (t) => {
   // Coarse pixel signature — enough to tell two drawings apart, small enough
@@ -507,21 +544,21 @@ section('surprise animals', async (t) => {
   };
   const page = await openPage();
 
-  const first = await page.evaluate(() => {
-    const w = document.querySelectorAll('.art-thumb-wrap')[0];
+  const tile = await page.evaluate((i) => {
+    const w = document.querySelectorAll('.art-thumb-wrap')[i];
     return { label: w.querySelector('span').textContent, cls: w.className };
-  });
-  t.eq(first.label, 'Surprise animal', 'the surprise tile comes first');
-  t.ok(/surprise/.test(first.cls), 'the surprise tile is marked as such');
+  }, TILE.animal);
+  t.eq(tile.label, 'An animal', 'there is an animal surprise tile');
+  t.ok(/surprise/.test(tile.cls), 'the surprise tile is marked as such');
 
   // Nothing on screen before Start may depend on which animal is coming, so
   // the preview must be byte-identical every time it's picked. Reloading is
   // what re-rolls the pick, so each sample needs its own load.
-  await page.locator('.art-thumb-wrap').nth(0).click();
+  await page.locator('.art-thumb-wrap').nth(TILE.animal).click();
   const previewSigs = new Set();
   for (let i = 0; i < 6; i++) {
     await page.reload();
-    await page.locator('.art-thumb-wrap').nth(0).click();
+    await page.locator('.art-thumb-wrap').nth(TILE.animal).click();
     previewSigs.add(await page.evaluate(SIG, 'previewCanvas'));
   }
   t.eq(previewSigs.size, 1, 'the preview never varies, so it cannot leak the animal');
@@ -585,12 +622,14 @@ section('every animal turns up exactly once', async (t) => {
       sub: document.getElementById('collectionSub').textContent,
       found: document.querySelectorAll('.collection-item.found').length,
       tiles: document.querySelectorAll('.collection-item').length,
+      heads: [...document.querySelectorAll('.collection-head')].map(h => h.textContent),
     };
   });
-  t.eq(full.count, `${N} of ${N}`, 'the counter reaches the full set');
-  t.eq(full.tiles, N, 'the collection has a tile per animal');
-  t.eq(full.found, N, 'every tile is unlocked once every animal is found');
-  t.ok(/found all/i.test(full.sub), `the sheet celebrates a complete set (got "${full.sub}")`);
+  t.eq(full.count, `${N} of ${TOTAL}`, 'the counter counts every animal');
+  t.eq(full.tiles, TOTAL, 'the collection has a tile for everything, in every category');
+  t.eq(full.found, N, 'every animal tile is unlocked once every animal is found');
+  t.ok(full.heads.some(h => h.indexOf(`Animals · ${N} of ${N}`) === 0 && /⭐/.test(h)),
+    `the Animals heading celebrates a complete set (got ${JSON.stringify(full.heads)})`);
   t.ok(page.errors.length === 0, `no page errors${page.errors.length ? ': ' + page.errors.join(' | ') : ''}`);
   await page.close();
 }, { slow: true });
@@ -622,7 +661,7 @@ section('a complete collection keeps giving animals', async (t) => {
   });
   await armSurprise(page);
   t.eq(await page.evaluate(() => document.getElementById('collectionCount').textContent),
-    `${N} of ${N}`, 'the seeded collection starts complete');
+    `${N} of ${TOTAL}`, 'the seeded animals are all counted');
   const afterFull = [];
   for (let i = 0; i < 4; i++) {
     await page.evaluate(() => { document.getElementById('startBtn').click(); });
@@ -641,14 +680,14 @@ section('a complete collection keeps giving animals', async (t) => {
   await page.close();
 });
 
-// Every animal has to survive being redrawn at tile size: the collection is
+// Everything has to survive being redrawn at tile size: the collection is
 // where a drawing is smallest, and a blank or duplicated tile there is the
 // failure mode a rework of one animal (the Fox, say) would produce.
-section('every animal draws at tile size', async (t) => {
+section('everything draws at tile size', async (t) => {
   const page = await openPage({
     init: [[names => {
       window.localStorage.setItem('revealTimer.animals.v1', JSON.stringify({ found: names }));
-    }, ANIMAL_NAMES]],
+    }, ALL_NAMES]],
   });
   const tiles = await page.evaluate(() => {
     document.getElementById('collectionBtn').click();
@@ -664,13 +703,13 @@ section('every animal draws at tile size', async (t) => {
       return { name: item.querySelector('span').textContent, variance: sq / n - (sum / n) ** 2, sig };
     });
   });
-  t.eq(tiles.length, ANIMAL_NAMES.length, 'every animal has a tile');
+  t.eq(JSON.stringify(tiles.map(x => x.name)), JSON.stringify(ALL_NAMES), 'everything has a tile, category by category');
   const faint = tiles.filter(x => x.variance < 50);
   t.ok(faint.length === 0, faint.length
-    ? `animals that barely draw at tile size: ${faint.map(x => `${x.name} (${x.variance.toFixed(0)})`).join(', ')}`
-    : 'no animal renders blank or near-blank at tile size');
-  t.eq(new Set(tiles.map(x => x.sig)).size, ANIMAL_NAMES.length,
-    'no two animals draw the same picture');
+    ? `things that barely draw at tile size: ${faint.map(x => `${x.name} (${x.variance.toFixed(0)})`).join(', ')}`
+    : 'nothing renders blank or near-blank at tile size');
+  t.eq(new Set(tiles.map(x => x.sig)).size, TOTAL,
+    'no two things draw the same picture');
   t.ok(page.errors.length === 0, `no page errors${page.errors.length ? ': ' + page.errors.join(' | ') : ''}`);
   await page.close();
 });
@@ -710,7 +749,7 @@ section('a found animal is kept', async (t) => {
       })(),
     };
   }, won);
-  t.eq(kept.count, `1 of ${N}`, 'a found animal survives a reload');
+  t.eq(kept.count, `1 of ${TOTAL}`, 'a found animal survives a reload');
   t.eq(kept.foundCount, 1, 'exactly the one animal is unlocked');
   t.eq(kept.lockedVariants, 1, 'every locked tile draws the same placeholder — no spoilers');
   t.eq(kept.lockedLabels, 1, 'locked tiles all share one label');
@@ -719,10 +758,13 @@ section('a found animal is kept', async (t) => {
   await page.close();
 });
 
-// Picking a preset instead of the surprise must not show an animal name.
-section('a preset run stays anonymous', async (t) => {
+// An uploaded photo isn't anything in the collection, so it gets no name.
+section('an uploaded photo stays anonymous', async (t) => {
   const page = await openPage({ clock: true });
-  await armSurprise(page, 3);
+  await page.locator('#imageInput').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: TINY_PNG });
+  await page.waitForFunction(() => !document.getElementById('startBtn').disabled);
+  await shortDuration(page);
+  await page.evaluate(() => { document.getElementById('soundToggle').checked = false; });
   await page.locator('#startBtn').click();
   await finish(page);
   await page.waitForTimeout(30);
@@ -730,8 +772,8 @@ section('a preset run stays anonymous', async (t) => {
     named: /visible/.test(document.getElementById('revealName').className),
     count: document.getElementById('collectionCount').textContent,
   }));
-  t.ok(!state.named, 'a preset run shows no animal name');
-  t.eq(state.count, `0 of ${N}`, 'a preset run does not add to the collection');
+  t.ok(!state.named, 'an upload run shows no name');
+  t.eq(state.count, `0 of ${TOTAL}`, 'an upload run does not add to the collection');
   await page.close();
 });
 
@@ -739,13 +781,13 @@ section('a preset run stays anonymous', async (t) => {
 // localStorage must not take the collection (or the app) down with it.
 section('surprise mode survives', async (t) => {
   const page = await openPage();
-  await page.locator('.art-thumb-wrap').nth(0).click();
+  await page.locator('.art-thumb-wrap').nth(TILE.animal).click();
   await page.reload();
   const restored = await page.evaluate(() => {
     const w = document.querySelector('.art-thumb-wrap.selected');
     return { label: w && w.querySelector('span').textContent, enabled: !document.getElementById('startBtn').disabled };
   });
-  t.eq(restored.label, 'Surprise animal', 'surprise mode is restored on reload');
+  t.eq(restored.label, 'An animal', 'surprise mode is restored on reload');
   t.ok(restored.enabled, 'restored surprise mode leaves Start enabled');
   await page.close();
 
@@ -809,7 +851,7 @@ section('start from the collection', async (t) => {
   t.eq(ran.text, won, 'the run reveals the animal that was tapped, not a random one');
   t.ok(ran.visible, 'its name shows at the reveal');
   t.ok(!ran.badge, 'an animal you already had is not flagged NEW again');
-  t.eq(ran.count, `1 of ${N}`, 'replaying an animal does not change the collection');
+  t.eq(ran.count, `1 of ${TOTAL}`, 'replaying an animal does not change the collection');
 
   // Back on the setup screen the picked animal is the current selection, named,
   // so Start repeats it without going through the sheet again.
@@ -823,7 +865,7 @@ section('start from the collection', async (t) => {
   t.eq(onSetup.label, won, 'the setup screen names the picked animal');
   t.ok(onSetup.labelShown, 'that label is visible');
   t.ok(onSetup.enabled, 'Start is enabled with an animal picked');
-  t.ok(!onSetup.tileSelected, 'no preset tile is left looking selected');
+  t.ok(!onSetup.tileSelected, 'no surprise tile is left looking selected');
 
   await page.locator('#startBtn').click();
   await finish(page);
@@ -847,18 +889,16 @@ section('start from the collection', async (t) => {
   t.eq(restored.label, won, 'a picked animal comes back after a reload');
   t.ok(restored.enabled && restored.previewDrawn, 'the restored animal is previewed and startable');
 
-  // Switching to a preset drops the animal — otherwise Start would quietly run
-  // the animal while the preview showed a preset.
-  await armSurprise(page, 2);
+  // Switching to another surprise drops the animal — otherwise Start would
+  // quietly run the animal while the preview showed the food tile.
+  await armSurprise(page, TILE.food);
+  const labelAfter = await page.evaluate(() => /visible/.test(document.getElementById('previewLabel').className));
   await page.locator('#startBtn').click();
   await finish(page);
   await page.waitForTimeout(30);
-  const afterPreset = await page.evaluate(() => ({
-    named: /visible/.test(document.getElementById('revealName').className),
-    label: /visible/.test(document.getElementById('previewLabel').className),
-  }));
-  t.ok(!afterPreset.named, 'picking a preset afterwards clears the chosen animal');
-  t.ok(!afterPreset.label, 'the animal name label goes away with it');
+  const afterFood = await page.evaluate(() => document.getElementById('revealName').textContent.replace(/^NEW/, ''));
+  t.ok(FOOD_NAMES.includes(afterFood), `picking the food surprise afterwards clears the chosen animal (got "${afterFood}")`);
+  t.ok(!labelAfter, 'the animal name label goes away with it');
   t.ok(page.errors.length === 0, `no page errors${page.errors.length ? ': ' + page.errors.join(' | ') : ''}`);
   await page.close();
 }, { slow: true });
@@ -931,7 +971,7 @@ section('an unfound animal has no way in', async (t) => {
       body: document.body.innerText,
     };
   });
-  t.eq(guarded.lockedCount, N, 'a cleared collection locks every animal again');
+  t.eq(guarded.lockedCount, TOTAL, 'a cleared collection locks everything again');
   t.ok(!guarded.zoomOpen, 'a locked tile cannot be opened');
   t.ok(guarded.startDisabled, 'a saved animal that is no longer found is not restored');
   t.ok(!guarded.labelShown, 'nothing on the setup screen names it');
@@ -983,7 +1023,7 @@ section('past the end of the set the surprise deals from a deck', async (t) => {
     const dealt = [];
     for (let i = 0; i < 4; i++) dealt.push(await page.runOnce());
     const left = await page.evaluate(k =>
-      (JSON.parse(window.localStorage.getItem(k)) || {}).deck || [], KEY);
+      ((JSON.parse(window.localStorage.getItem(k)) || {}).decks || {}).animal || [], KEY);
     await page.reload();
     await armSurprise(page);
     const resumed = await page.runOnce();
@@ -993,7 +1033,8 @@ section('past the end of the set the surprise deals from a deck', async (t) => {
   };
 
   // Half two: the seam between one pass and the next. The deck is seeded with a
-  // single card, so the run after it has to reshuffle.
+  // single card, so the run after it has to reshuffle. It's seeded in the old
+  // single-deck format on purpose: that's what an existing save holds.
   const seam = async () => {
     const page = await armed({ found: ANIMAL_NAMES, deck: [ANIMAL_NAMES[0]] });
     const lastOfPass = await page.runOnce();
@@ -1066,8 +1107,8 @@ section('the picture comes off four different ways', async (t) => {
       clock: true,
       init: [[c => { Math.random = () => c; }, (i + 0.5) / REVEAL_COUNT]],
     });
+    await pickFound(page, 'Mandala');                      // Mandala: a near-black artwork
     await page.locator('.bg-swatch').nth(6).click();       // Sand: a near-white mask
-    await page.locator('.art-thumb-wrap').nth(1).click();  // Mandala: a near-black artwork
     await page.evaluate((s) => {
       const sel = document.getElementById('durationSelect');
       const opt = document.createElement('option');
@@ -1110,6 +1151,73 @@ section('the picture comes off four different ways', async (t) => {
     `and still mostly hide it with a quarter of the round left (${faceStillLast} of ${REVEAL_COUNT} do)`);
 }, { slow: true });
 
+// ---- 15. every category's surprise deals from that category ----
+section('each surprise tile deals from its own category', async (t) => {
+  const runs = [['food', FOOD_NAMES], ['word', WORD_NAMES], ['pattern', PATTERN_NAMES], ['any', ALL_NAMES]];
+  const results = await Promise.all(runs.map(async ([cat, names]) => {
+    const page = await openPage({ clock: true });
+    await armSurprise(page, TILE[cat]);
+    const got = [];
+    for (let i = 0; i < 3; i++) {
+      await page.evaluate(() => { document.getElementById('startBtn').click(); });
+      await finish(page);
+      got.push(await page.evaluate(() => {
+        const n = document.getElementById('revealName').textContent.replace(/^NEW/, '');
+        document.getElementById('resetBtn').click();
+        return n;
+      }));
+    }
+    const count = await page.evaluate(() => document.getElementById('collectionCount').textContent);
+    const errors = page.errors.slice();
+    await page.close();
+    return { cat, names, got, count, errors };
+  }));
+  for (const r of results) {
+    t.ok(r.got.every(n => r.names.includes(n)), `${r.cat}: every reveal comes from that category (${r.got.join(', ')})`);
+    t.eq(new Set(r.got).size, 3, `${r.cat}: three runs, three different things`);
+    t.eq(r.count, `3 of ${TOTAL}`, `${r.cat}: each one is added to the collection`);
+    t.ok(r.errors.length === 0, `${r.cat}: no page errors${r.errors.length ? ': ' + r.errors.join(' | ') : ''}`);
+  }
+});
+
+// ---- 16. saves from before categories still load ----
+// The old app saved "__surprise__" for the animal surprise, "animal:Fox" for a
+// picked animal, and a bare name for a preset pattern. A pattern that was the
+// saved selection was in use, so it comes back as found rather than vanishing.
+section('older saves carry over', async (t) => {
+  const load = async (settings, animals) => {
+    const page = await openPage();
+    await page.evaluate(([s, a]) => {
+      window.localStorage.setItem('revealTimer.settings.v1', JSON.stringify(s));
+      if (a) window.localStorage.setItem('revealTimer.animals.v1', JSON.stringify(a));
+    }, [settings, animals]);
+    await page.reload();
+    const out = await page.evaluate(() => ({
+      tile: (document.querySelector('.art-thumb-wrap.selected span') || {}).textContent || null,
+      label: document.getElementById('previewLabel').textContent,
+      count: document.getElementById('collectionCount').textContent,
+      enabled: !document.getElementById('startBtn').disabled,
+    }));
+    out.errors = page.errors.slice();
+    await page.close();
+    return out;
+  };
+  const base = { bg: '#111827', duration: '300', sound: false };
+  const [surprise, animal, pattern] = await Promise.all([
+    load({ ...base, art: '__surprise__' }, { found: ['Fox', 'Cat'], deck: ['Owl'], last: 'Fox' }),
+    load({ ...base, art: 'animal:Cat' }, { found: ['Fox', 'Cat'] }),
+    load({ ...base, art: 'Mandala' }, null),
+  ]);
+  t.eq(surprise.tile, 'An animal', 'the old surprise setting selects the animal surprise');
+  t.eq(surprise.count, `2 of ${TOTAL}`, 'animals found before categories are still found');
+  t.eq(animal.label, 'Cat', 'an old picked animal is still picked');
+  t.eq(pattern.label, 'Mandala', 'an old preset pattern is still picked');
+  t.eq(pattern.count, `1 of ${TOTAL}`, 'and counts as found');
+  t.ok([surprise, animal, pattern].every(r => r.enabled), 'Start is enabled in every case');
+  const errors = [surprise, animal, pattern].flatMap(r => r.errors);
+  t.ok(errors.length === 0, `no page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
+});
+
 // ---- 14. the tiles pattern has no seams between covered cells ----
 //
 // revealTiles() draws each covered cell as its own fillRect. Two neighbours
@@ -1134,8 +1242,8 @@ section('the tiles pattern has no seams between covered cells', async (t) => {
       Math.random = () => { if (first) { first = false; return pick; } return orig(); };
     }, 3.5 / 4]], // the 4th of 4 patterns = tiles
   });
+  await pickFound(page, 'Mandala');                      // Mandala: near-black artwork, max contrast
   await page.locator('.bg-swatch').nth(6).click();       // Sand: near-white mask
-  await page.locator('.art-thumb-wrap').nth(1).click();  // Mandala: near-black artwork, max contrast
   await shortDuration(page);
   await page.evaluate(() => { document.getElementById('soundToggle').checked = false; });
   await page.locator('#startBtn').click();
