@@ -1,13 +1,13 @@
 // Look at the artwork without playing a timer.
 //
-// The sixteen surprise animals are deliberately hard to see: the only way to
-// one in the app is to finish a run and be given it, and the collection hides
-// the names of the ones you haven't found. That is right for an eight-year-old
+// Everything in the collection (animals, food, words, patterns) is deliberately
+// hard to see: the only way to one in the app is to finish a run and be given
+// it, and the collection hides the names of the ones you haven't found. That is right for an eight-year-old
 // and wrong for anyone editing anBlobfish(). This renders any of them straight
 // to a PNG.
 //
 //   node shots.mjs Fox Cat        render those animals, large
-//   node shots.mjs                render all sixteen
+//   node shots.mjs                render everything (except the OpenMoji animals)
 //   node shots.mjs --grid         the whole collection sheet, at real tile size
 //   node shots.mjs --compare Fox  this file vs git HEAD, side by side
 //
@@ -55,8 +55,12 @@ if (process.env.PLAYWRIGHT_CHROMIUM_PATH) launchOpts.executablePath = process.en
 
 // Locked tiles hide their names on purpose, so the roster comes from the
 // source's own ANIMALS table rather than from the DOM.
-const roster = (appPath) =>
-  [...readFileSync(appPath, 'utf8').matchAll(/\{name:'([^']+)',\s*fn:an/g)].map(m => m[1]);
+const roster = (appPath) => {
+  const src = readFileSync(appPath, 'utf8');
+  const drawn = [...src.matchAll(/\{name:'([^']+)',\s*fn:(?:an|fd|art)/g)].map(m => m[1]);
+  const words = (src.match(/WORD_LIST = \[([^\]]*)\]/) || [, ''])[1].match(/'[^']+'/g) || [];
+  return drawn.concat(words.map(w => w.slice(1, -1)));
+};
 
 const slug = n => n.toLowerCase().replace(/[^a-z0-9]/g, '');
 const writePng = (file, dataUrl) => {
