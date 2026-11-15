@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tools · Ken Arnold</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #f9fafb; --fg: #111827; --muted: #6b7280; --card: #fff; --border: #e5e7eb; --accent: #2563eb; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #111827; --fg: #f9fafb; --muted: #9ca3af; --card: #1f2937; --border: #374151; --accent: #60a5fa; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 2rem 1.25rem; background: var(--bg); color: var(--fg);
+           font-family: -apple-system, Helvetica, Arial, sans-serif; line-height: 1.5; }
+    main { max-width: 40rem; margin: 0 auto; }
+    h1 { margin: 0 0 .25rem; font-size: 1.75rem; }
+    .lede { margin: 0 0 1.5rem; color: var(--muted); }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .75rem; }
+    a.tool { display: block; padding: 1rem 1.25rem; border: 1px solid var(--border); border-radius: .75rem;
+             background: var(--card); color: inherit; text-decoration: none; }
+    a.tool:hover, a.tool:focus-visible { border-color: var(--accent); }
+    .name { font-weight: 600; color: var(--accent); }
+    .desc { color: var(--muted); font-size: .95rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Tools</h1>
+    <p class="lede">Small single-page tools by Ken Arnold.</p>
+    <ul>
+      <!-- Add new tools here: one <li> per directory. -->
+      <li>
+        <a class="tool" href="/round-timer/">
+          <div class="name">⏱️ Reveal Timer</div>
+          <div class="desc">A countdown timer that gradually reveals a picture as time runs out.</div>
+        </a>
+      </li>
+    </ul>
+  </main>
+</body>
+</html>
