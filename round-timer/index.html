@@ -254,18 +254,26 @@
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(8,10,16,0.85); z-index: 20;
       overflow-y: auto; -webkit-overflow-scrolling: touch;
+      /* Keep scroll gestures from chaining to the page behind (and stalling). */
+      overscroll-behavior: contain;
       padding: 20px 16px 40px;
     }
     .sheet.open { display: block; }
+    body:has(.sheet.open) { overflow: hidden; }
     /* The sheet keeps its own dark palette in both themes — it's an overlay,   */
     /* and the animal tiles need a consistent backdrop to be judged against.    */
     .sheet-inner {
       max-width: 360px; margin: 0 auto; background: #161c26;
       border-radius: 16px; padding: 16px; color: #f9fafb;
     }
+    /* Pinned to the top of the scrolling sheet so the close button is always  */
+    /* reachable; negative margins let its background cover the card padding.  */
     .sheet-head {
       display: -webkit-flex; display: flex;
       -webkit-align-items: center; align-items: center; gap: 8px;
+      position: -webkit-sticky; position: sticky; top: 0; z-index: 2;
+      background: #161c26; margin: -16px -16px 0; padding: 16px 16px 8px;
+      border-radius: 16px 16px 0 0;
     }
     .sheet-head h2 { font-size: 1.05em; margin: 0; -webkit-flex: 1; flex: 1; }
     .sheet-head button {
