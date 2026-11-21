@@ -251,7 +251,7 @@
       vertical-align: middle;
     }
     .sheet {
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      display: none; position: fixed; top: env(safe-area-inset-top); left: 0; right: 0; bottom: 0;
       background: rgba(8,10,16,0.85); z-index: 20;
       overflow-y: auto; -webkit-overflow-scrolling: touch;
       /* Keep scroll gestures from chaining to the page behind (and stalling). */
