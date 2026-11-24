@@ -138,7 +138,6 @@ test('background palette', async ({ openPage }) => {
     [...document.querySelectorAll('.bg-row')].map(r =>
       [...r.querySelectorAll('.bg-swatch')].map(s => ({
         bg: s.getAttribute('data-bg'),
-        mask: s.getAttribute('data-mask'),
         light: s.getAttribute('data-light') === '1',
       }))));
   const rgb = hex => [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16));
@@ -157,8 +156,6 @@ test('background palette', async ({ openPage }) => {
   ok(rows[0].every(s => !s.light), 'first row is the dark set');
   ok(rows[1].every(s => s.light), 'second row is the light set');
   ok(rows[1].some(s => s.bg === '#e0f2fe'), 'the light blue is left exactly as it was');
-  const badMask = rows.flat().find(s => s.mask !== rgb(s.bg).join(','));
-  ok(!badMask, badMask ? `mask colour disagrees with swatch for ${badMask.bg}` : 'every mask colour matches its swatch');
 });
 
 // press-and-hold can't start a text selection
@@ -210,6 +207,22 @@ test('surprise mode survives', async ({ openPage }) => {
 // The old app saved "__surprise__" for the animal surprise, "animal:Fox" for a
 // picked animal, and a bare name for a preset pattern. A pattern that was the
 // saved selection was in use, so it comes back as found rather than vanishing.
+// Whatever is in storage, the app has to start.
+test('a corrupt save is ignored', async ({ openPage }) => {
+  for (const junk of ['not json', '5', '"text"', 'null', '[]', '{"found":7,"decks":3,"lastShown":"x","deck":1,"art":{},"bg":[],"duration":{}}']) {
+    const page = await openPage();
+    await page.evaluate(v => {
+      window.localStorage.setItem('revealTimer.settings.v1', v);
+      window.localStorage.setItem('revealTimer.animals.v1', v);
+    }, junk);
+    await page.reload();
+    eq(await page.locator('.art-thumb-wrap').count(), 5, `${junk}: the tiles are there`);
+    await armSurprise(page);
+    await page.locator('#startBtn').click();
+    ok(await page.locator('#timerView').isVisible(), `${junk}: a round starts`);
+  }
+});
+
 test('older saves carry over', async ({ openPage }) => {
   const load = async (settings, animals) => {
     const page = await openPage();

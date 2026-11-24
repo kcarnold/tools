@@ -13,12 +13,9 @@
       dotEye = draw.dotEye,
       catMouth = draw.catMouth;
 
-  /* The fox used to be six flat polygons: a hexagonal head, knife-edged cheeks  */
-  /* and a hard V of a muzzle — the only animal here whose head wasn't an        */
-  /* ellipse. The kids' verdict was "Foxy is too boxy". So the cranium is an     */
-  /* ell() like everybody else's, and the wedges that keep it a fox rather than  */
-  /* a cat — pointed ears, tapering snout, cream mask, orange blaze down the     */
-  /* nose — go through softPoly, which keeps their shape but not their corners.  */
+  /* The wedges that keep it a fox rather than a cat — pointed ears, tapering    */
+  /* snout, cream mask, orange blaze down the nose — go through softPoly, which  */
+  /* keeps their shape but not their corners.                                    */
   function anFox(ctx, S) {
     var u = S/100; wash(ctx,S,'#ffeed2','#f0b473');
     softPoly(ctx,[[24*u,47*u],[30*u,12*u],[53*u,35*u]],'#e2661c',2.6*u);

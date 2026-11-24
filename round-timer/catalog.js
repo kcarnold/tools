@@ -2,12 +2,10 @@
 (function (RT) {
   'use strict';
 
-  /* ---- Categories -------------------------------------------------------------- */
   /* Everything you can reveal belongs to one of these, and every category works  */
   /* the same way: a surprise tile deals one you haven't found yet, and once found */
-  /* it's in the collection to pick on purpose. The patterns used to be the odd   */
-  /* ones out — always on display, never discovered. Now they're found like the   */
-  /* rest. Names must be unique across categories: the found list is one list.    */
+  /* it's in the collection to pick on purpose. Names must be unique across       */
+  /* categories: the found list is one list.                                      */
   var CATEGORIES = [
     {id:'animal',  label:'Animals',  one:'animal',  tile:'An animal', items:RT.art.animals,  from:'#7c3aed', to:'#2563eb'},
     {id:'food',    label:'Food',     one:'food',    tile:'Food',      items:RT.art.food,     from:'#fb923c', to:'#e11d48'},

@@ -13,8 +13,8 @@ test('the picture comes off four different ways', async ({ openPage }) => {
     const c = document.getElementById('canvas');
     const S = c.width, R = S / 2;
     const d = c.getContext('2d').getImageData(0, 0, S, S).data;
-    const m = document.querySelector('.bg-swatch.selected')
-      .getAttribute('data-mask').split(',').map(Number);
+    const m = document.querySelector('.bg-swatch.selected').getAttribute('data-bg')
+      .match(/[0-9a-f]{2}/g).map(h => parseInt(h, 16));
     let inside = 0, masked = 0, core = 0, coreMasked = 0, sig = '';
     for (let i = 0; i < d.length; i += 4) {
       const px = (i / 4) % S, py = Math.floor((i / 4) / S);
@@ -122,7 +122,8 @@ test('the tiles pattern has no seams between covered cells', async ({ openPage }
     const c = document.getElementById('canvas');
     const S = c.width;
     const d = c.getContext('2d').getImageData(0, 0, S, S).data;
-    const m = document.querySelector('.bg-swatch.selected').getAttribute('data-mask').split(',').map(Number);
+    const m = document.querySelector('.bg-swatch.selected').getAttribute('data-bg')
+      .match(/[0-9a-f]{2}/g).map(h => parseInt(h, 16));
     const at = (x, y) => { const i = (y * S + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
     const nearMask = (px) => Math.abs(px[0] - m[0]) < 20 && Math.abs(px[1] - m[1]) < 20 && Math.abs(px[2] - m[2]) < 20;
     // Inside the circle's own antialiased edge (R=S/2), not just inside the

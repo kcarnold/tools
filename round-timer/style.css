@@ -15,9 +15,8 @@ body {
   flex-direction: column;
   align-items: center;
   transition: background 0.25s;
-  /* A press-and-hold on any control used to start a text selection (and the  */
-  /* iOS callout menu), which swallowed the tap. Nothing here is worth        */
-  /* selecting, so turn it off everywhere and re-enable it for form fields.   */
+  /* A press-and-hold would start a text selection (and the iOS callout menu) */
+  /* and swallow the tap. Nothing here is worth selecting but form fields.    */
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -43,8 +42,7 @@ h1 { font-size: 1.3em; font-weight: 700; margin: 0 0 20px; letter-spacing: 0.05e
   font-size: 0.75em; color: var(--fg-muted);
   text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;
 }
-/* Wraps onto as many rows as it needs — a sideways-scrolling strip hid most  */
-/* of the presets behind a gesture people didn't know was there.              */
+/* Wraps rather than scrolling sideways, which people don't discover. */
 .art-row {
   display: flex;
   flex-wrap: wrap;
@@ -119,9 +117,8 @@ body.light-bg select {
 .start-btn:disabled { background: #374151; color: #6b7280; cursor: default; }
 .start-btn:active:not(:disabled) { background: #2563eb; }
 /* Start is pinned to the bottom of the screen. The setup column is about  */
-/* 870px tall and an iPhone 15 shows ~660px of it in Safari, so Start sat  */
-/* below the fold. Settings are saved between runs, so the usual visit is  */
-/* "pick a picture, press Start" — and both are now on screen at once.     */
+/* 870px tall and an iPhone 15 shows ~660px of it in Safari, and the usual */
+/* visit is "pick a picture, press Start".                                 */
 /* The bar is painted in the page colour (--page-bg, set alongside the     */
 /* body background) so the pictures scroll under it rather than through.  */
 .start-bar {
@@ -154,9 +151,8 @@ body.light-bg select {
   background: none; border: none; color: inherit;
   font-size: 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
-/* Fixed-width digits: the proportional system font made the countdown jitter */
-/* left and right every second. `tabular-nums` isn't honoured by every old    */
-/* WebKit, so the monospace stack is the belt to its braces.                  */
+/* Fixed-width digits, so the countdown doesn't jitter. `tabular-nums` isn't  */
+/* honoured by every old WebKit, hence the monospace stack too.               */
 .time-display {
   font-size: 2.8em; font-weight: 700; letter-spacing: 3px;
   margin-bottom: 16px; color: var(--fg);
@@ -262,7 +258,7 @@ canvas#canvas {
   padding: 20px 16px max(40px, calc(24px + env(safe-area-inset-bottom)));
 }
 .sheet.open { display: block; }
-body:has(.sheet.open) { overflow: hidden; }
+body.sheet-open { overflow: hidden; }
 /* The sheet keeps its own dark palette in both themes — it's an overlay,   */
 /* and the animal tiles need a consistent backdrop to be judged against.    */
 .sheet-inner {

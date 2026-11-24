@@ -21,6 +21,14 @@ var FILES = [
   'art/words.js',
   'art/tiles.js',
   'catalog.js',
+  'storage.js',
+  'collection.js',
+  'reveals.js',
+  'celebrations.js',
+  'audio.js',
+  'wakelock.js',
+  'dom.js',
+  'sheet.js',
   'app.js'
 ];
 var URLS = FILES.map(function(f) { return new URL(f, self.registration.scope).href; });

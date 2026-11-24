@@ -12,7 +12,7 @@ node_modules
 .DS_Store
 .npmrc
 wrangler.jsonc
-README.md
+**/*.md
 **/*.mjs
 
 # development only
