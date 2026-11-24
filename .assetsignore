@@ -14,3 +14,15 @@ node_modules
 wrangler.jsonc
 README.md
 **/*.mjs
+
+# development only
+package.json
+package-lock.json
+.gitignore
+.github
+.claude
+/scripts
+tests
+test-results
+playwright-report
+**/*.py

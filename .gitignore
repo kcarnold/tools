@@ -4,3 +4,7 @@
 !.dev.vars.example
 .env*
 !.env.example
+
+node_modules
+test-results
+playwright-report
