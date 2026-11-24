@@ -2374,7 +2374,7 @@
         tc.width = 62; tc.height = 62;
         try { (found ? item.fn : artLocked)(tc.getContext('2d'), 62); } catch (e) {}
         var lbl = document.createElement('span');
-        lbl.textContent = found ? item.name : '???';
+        lbl.textContent = item.name;
         el.appendChild(tc); el.appendChild(lbl);
         if (found) el.addEventListener('click', function() { openZoom(item); });
         collectionGrid.appendChild(el);
