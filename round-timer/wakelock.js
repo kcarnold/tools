@@ -6,8 +6,10 @@
   var supported = 'wakeLock' in navigator;
   var lock    = null;
   var request = null;   /* the request that may still set lock */
+  var timer   = null;   /* a release still to come             */
 
   function release() {
+    clearTimeout(timer);
     request = null;
     if (lock) { lock.release(); lock = null; }
   }
@@ -26,5 +28,13 @@
     } catch (e) {}
   }
 
-  RT.wakeLock = {supported: supported, acquire: acquire, release: release};
+  /* Any acquire or release in the meantime calls this off. */
+  function releaseAfter(ms) {
+    clearTimeout(timer);
+    timer = setTimeout(release, ms);
+  }
+
+  RT.wakeLock = {
+    supported: supported, acquire: acquire, release: release, releaseAfter: releaseAfter
+  };
 }(window.RT = window.RT || {}));

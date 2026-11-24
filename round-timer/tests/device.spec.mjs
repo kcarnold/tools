@@ -46,7 +46,7 @@ const FAKE_AUDIO = () => {
 const held = page => page.evaluate(() => window.__locks.held);
 const becomeVisible = page => page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); });
 
-test('the screen is kept on only while a round is running', async ({ openPage }) => {
+test('the screen is kept on for a round and a minute after it', async ({ openPage }) => {
   const page = await openPage({ clock: true, init: [[FAKE_WAKE_LOCK]] });
   await armSurprise(page);
   eq(await held(page), 0, 'nothing is held on the setup screen');
@@ -58,11 +58,27 @@ test('the screen is kept on only while a round is running', async ({ openPage })
   eq(await held(page), 1, 'resuming takes it back');
   await finish(page);
   await page.clock.runFor(9000);             // the celebration is over too
-  eq(await held(page), 0, 'the screen may sleep once the round is done');
+  eq(await held(page), 1, 'the screen stays on for a while to look at the picture');
+  await page.clock.runFor(61000);
+  eq(await held(page), 0, 'and then may sleep');
   await becomeVisible(page);
   eq(await held(page), 0, 'coming back to a finished round does not take it again');
   await page.locator('#pauseBtn').click();   // Restart
   eq(await held(page), 1, 'Restart holds one lock, not two');
+  await page.locator('#resetBtn').click();
+  eq(await held(page), 0, 'Reset lets go');
+});
+
+test('a new round is not cut off by the last one letting go of the screen', async ({ openPage }) => {
+  const page = await openPage({ clock: true, init: [[FAKE_WAKE_LOCK]] });
+  await armSurprise(page);
+  await page.locator('#startBtn').click();
+  await finish(page);
+  await page.clock.runFor(9000);
+  await page.evaluate(() => { document.getElementById('durationSelect').value = '300'; });   // for the next round
+  await page.locator('#pauseBtn').click();   // Restart, inside the minute
+  await page.clock.runFor(61000);
+  eq(await held(page), 1, 'the screen is still on a minute into the new round');
   await page.locator('#resetBtn').click();
   eq(await held(page), 0, 'Reset lets go');
 });

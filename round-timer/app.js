@@ -157,6 +157,7 @@
   /* ---- Phase ---------------------------------------------------------------- */
   /* setup -> running <-> paused, running -> celebrating -> done. Everything     */
   /* that depends on which of these it is gets set here and nowhere else.        */
+  var LINGER = 60000;       /* the screen stays on this long after the celebration, to look */
   var phase = 'setup';
   var frameId = null;
   var run = null;           /* the round under way, or just finished */
@@ -179,7 +180,8 @@
     pauseBtn.classList.toggle('done', isFinished());
 
     if (isAwake() && !wasAwake) RT.wakeLock.acquire();
-    if (!isAwake()) RT.wakeLock.release();
+    if (phase === 'done') RT.wakeLock.releaseAfter(LINGER);
+    else if (!isAwake()) RT.wakeLock.release();
     if (isAwake() !== wasAwake) RT.audio.keepAlive(isAwake());
 
     cancelAnimationFrame(frameId);
