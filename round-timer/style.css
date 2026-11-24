@@ -1,0 +1,400 @@
+/* iOS 9.3 is the oldest Safari this has to work on. So: no flexbox `gap`  */
+/* (14.5), use margins; and anything with env(), max() or dvh (11, 11, 15.4) */
+/* needs a plain declaration before it. tests/legacy.spec.mjs checks.       */
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 20px;
+  min-height: 100vh;
+  background: #111827;
+  --fg: #f9fafb; --fg-muted: #9ca3af; --fg-dim: #6b7280; --fg-soft: #d1d5db;
+  --ring1: #1f2937; --ring2: #374151; --done: #34d399;
+  --field-bg: #1f2937; --field-border: #374151;
+  color: var(--fg);
+  font-family: -apple-system, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: background 0.25s;
+  /* A press-and-hold on any control used to start a text selection (and the  */
+  /* iOS callout menu), which swallowed the tap. Nothing here is worth        */
+  /* selecting, so turn it off everywhere and re-enable it for form fields.   */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+input, select, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+button, .upload-btn, .bg-swatch, .art-thumb-wrap, .toggle, .sound-row label {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+body.light-bg {
+  --fg: #111827; --fg-muted: #52525b; --fg-dim: #6b7280; --fg-soft: #374151;
+  --ring1: #e5e7eb; --ring2: #cbd5e1; --done: #059669;
+  --field-bg: #ffffff; --field-border: #cbd5e1;
+}
+h1 { font-size: 1.3em; font-weight: 700; margin: 0 0 20px; letter-spacing: 0.05em; color: var(--fg); }
+.setup { width: 100%; max-width: 340px; }
+.section-label {
+  font-size: 0.75em; color: var(--fg-muted);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;
+}
+/* Wraps onto as many rows as it needs — a sideways-scrolling strip hid most  */
+/* of the presets behind a gesture people didn't know was there.              */
+.art-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: -5px -2px 9px;   /* less the tiles' own margins */
+}
+/* 64px so all five surprise tiles sit in one row on a phone: the setup    */
+/* column is 340px wide there, and 5 x 64 + 4 x 4 = 336.                   */
+.art-thumb-wrap {
+  flex-shrink: 0;
+  width: 64px; margin: 5px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+.art-thumb-wrap canvas { border-radius: 50%; border: 2.5px solid transparent; width: 62px; height: 62px; display: block; }
+.art-thumb-wrap.selected canvas { border-color: #3b82f6; }
+.art-thumb-wrap span {
+  margin-top: 4px;
+  font-size: 0.62em; color: var(--fg-muted);
+  text-align: center; line-height: 1.2; max-width: 100%;
+}
+.divider {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.divider-line { flex: 1; height: 1px; background: var(--ring2); }
+.divider span { margin: 0 8px; font-size: 0.75em; color: var(--fg-dim); }
+.upload-btn {
+  display: block; width: 100%; padding: 10px; border-radius: 10px;
+  border: 1px dashed var(--ring2); background: transparent;
+  color: var(--fg-muted); font-size: 0.9em; text-align: center;
+  cursor: pointer; margin-bottom: 14px;
+}
+input[type="file"] { display: none; }
+.field { margin-bottom: 12px; }
+select {
+  padding: 10px 32px 10px 12px; border-radius: 10px;
+  border: 1px solid var(--field-border); background-color: var(--field-bg);
+  color: var(--fg); font-size: 1em; width: 100%;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239ca3af' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+/* Same chevron, darkened so it stays visible on the white field. */
+body.light-bg select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236b7280' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+}
+.sound-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.sound-row label { font-size: 0.9em; color: var(--fg-soft); }
+.toggle { position: relative; margin-right: 10px; width: 42px; height: 24px; display: inline-block; }
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #374151; border-radius: 12px; }
+.toggle input:checked + .toggle-track { background: #3b82f6; }
+.toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%; background: white;
+  transition: transform 0.2s;
+}
+.toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+.start-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  background: #3b82f6; color: white; font-size: 1.1em; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.start-btn:disabled { background: #374151; color: #6b7280; cursor: default; }
+.start-btn:active:not(:disabled) { background: #2563eb; }
+/* Start is pinned to the bottom of the screen. The setup column is about  */
+/* 870px tall and an iPhone 15 shows ~660px of it in Safari, so Start sat  */
+/* below the fold. Settings are saved between runs, so the usual visit is  */
+/* "pick a picture, press Start" — and both are now on screen at once.     */
+/* The bar is painted in the page colour (--page-bg, set alongside the     */
+/* body background) so the pictures scroll under it rather than through.  */
+.start-bar {
+  position: -webkit-sticky; position: sticky; bottom: 0; z-index: 5;
+  padding: 12px 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: var(--page-bg, #111827);
+  transition: background 0.25s;
+}
+.start-bar::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -14px; height: 14px;
+  background: linear-gradient(rgba(0,0,0,0), var(--page-bg, #111827));
+  pointer-events: none;
+}
+.timer-view {
+  width: 100%; max-width: 360px; display: none;
+  flex-direction: column;
+  align-items: center;
+}
+.timer-view.active { display: flex; }
+.wake-banner {
+  display: none; align-items: center;
+  width: 100%; max-width: 320px;
+  background: #78350f; color: #fef3c7; font-size: 0.78em;
+  padding: 8px 12px; border-radius: 10px; margin-bottom: 14px;
+}
+.wake-banner.visible { display: flex; }
+.wake-banner button {
+  margin-left: auto; padding: 1px 6px 1px 14px;
+  background: none; border: none; color: inherit;
+  font-size: 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+/* Fixed-width digits: the proportional system font made the countdown jitter */
+/* left and right every second. `tabular-nums` isn't honoured by every old    */
+/* WebKit, so the monospace stack is the belt to its braces.                  */
+.time-display {
+  font-size: 2.8em; font-weight: 700; letter-spacing: 3px;
+  margin-bottom: 16px; color: var(--fg);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+.time-display.done { color: var(--done); }
+canvas#canvas {
+  border-radius: 50%; display: block;
+  width: 100%; max-width: 320px; height: auto;
+  box-shadow: 0 0 0 4px var(--ring1), 0 0 0 6px var(--ring2);
+}
+/* A wide gap plus a size/shape difference is the point: Reset throws the    */
+/* run away with no confirmation, so it should not be an equally-weighted   */
+/* target sitting right next to the button you're meant to tap repeatedly.  */
+.controls { display: flex; align-items: center; margin-top: 20px; }
+.ctrl-btn + .ctrl-btn { margin-left: 28px; }
+.ctrl-btn {
+  border: none; border-radius: 24px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ctrl-btn.pause {
+  padding: 11px 26px; font-size: 0.95em; font-weight: 600;
+  background: #f59e0b; color: #1c1917;
+}
+.ctrl-btn.pause:active { background: #d97706; }
+/* Paused is a different colour, not just different words — green for "tap  */
+/* to go again", so the state reads at a glance instead of by reading text. */
+.ctrl-btn.pause.paused { background: #22c55e; color: #052e13; }
+.ctrl-btn.pause.paused:active { background: #16a34a; }
+/* Finished: the same button becomes Restart, in a distinct colour so the   */
+/* state reads at a glance — blue for "start it again".                     */
+.ctrl-btn.pause.done { background: #3b82f6; color: #ffffff; }
+.ctrl-btn.pause.done:active { background: #2563eb; }
+/* Outlined, smaller and plain-worded, so it neither looks like nor sits    */
+/* next to Pause/Resume as an equal choice.                                */
+.ctrl-btn.reset {
+  padding: 8px 18px; font-size: 0.82em; font-weight: 600;
+  background: transparent; color: #9ca3af; border: 1.5px solid #4b5563;
+}
+.ctrl-btn.reset:active { background: #374151; color: #f9fafb; }
+
+/* Preview */
+.preview-wrap { display: none; margin-bottom: 14px; text-align: center; }
+.preview-wrap.visible { display: block; }
+.preview-wrap canvas { border-radius: 50%; width: 90px; height: 90px; display: inline-block; box-shadow: 0 0 0 3px #374151; }
+
+/* Background swatches — one row of darks, one row of lights */
+.bg-rows { margin-bottom: 16px; }
+.bg-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: -5px -5px 5px;   /* less the swatches' own margins */
+}
+.bg-row > * { margin: 5px; }
+.bg-row:last-child { margin-bottom: -5px; }
+.bg-row-label {
+  font-size: 0.68em; color: var(--fg-dim);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  width: 34px; flex-shrink: 0;
+}
+.bg-swatch {
+  width: 32px; height: 32px; border-radius: 50%; border: 2.5px solid transparent; cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(128,128,128,0.35);
+}
+.bg-swatch.selected { border-color: var(--fg); }
+
+/* Surprise animals + the collection sheet */
+.art-thumb-wrap.surprise span { color: var(--fg); font-weight: 700; }
+.collection-btn {
+  display: block; width: 100%; padding: 10px; border-radius: 10px;
+  border: 1px solid var(--field-border); background-color: var(--field-bg);
+  color: var(--fg); font-size: 0.9em; text-align: center;
+  cursor: pointer; margin-bottom: 14px;
+}
+/* The animal's name, revealed only once the picture is fully uncovered. */
+.reveal-name {
+  display: none; margin-top: 16px; font-size: 1.3em; font-weight: 700;
+  color: var(--fg); text-align: center;
+}
+.reveal-name.visible { display: block; }
+.new-badge {
+  display: inline-block; background: #f59e0b; color: #1c1917;
+  font-size: 0.55em; font-weight: 800; letter-spacing: 0.12em;
+  padding: 4px 7px; border-radius: 6px; margin-right: 8px;
+  vertical-align: middle;
+}
+.sheet {
+  display: none; position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;   /* for browsers without env() */
+  top: env(safe-area-inset-top);
+  left: env(safe-area-inset-left);
+  right: env(safe-area-inset-right);
+  bottom: env(safe-area-inset-bottom);
+  background: rgba(8,10,16,0.85); z-index: 20;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  /* Keep scroll gestures from chaining to the page behind (and stalling). */
+  overscroll-behavior: contain;
+  padding: 20px 16px 40px;
+  padding: 20px 16px max(40px, calc(24px + env(safe-area-inset-bottom)));
+}
+.sheet.open { display: block; }
+body:has(.sheet.open) { overflow: hidden; }
+/* The sheet keeps its own dark palette in both themes — it's an overlay,   */
+/* and the animal tiles need a consistent backdrop to be judged against.    */
+.sheet-inner {
+  max-width: 360px; margin: 0 auto; background: #161c26;
+  border-radius: 16px; padding: 16px; color: #f9fafb;
+}
+/* Pinned to the top of the scrolling sheet so the close button is always  */
+/* reachable; negative margins let its background cover the card padding.  */
+.sheet-head {
+  display: flex;
+  align-items: center;
+  position: -webkit-sticky; position: sticky; top: 0; z-index: 2;
+  background: #161c26; margin: -16px -16px 0; padding: 16px 16px 8px;
+  border-radius: 16px 16px 0 0;
+}
+.sheet-head h2 { font-size: 1.05em; margin: 0; flex: 1; }
+.sheet-head button {
+  margin-left: 8px;
+  background: none; border: none; color: #9ca3af; font-size: 18px;
+  cursor: pointer; padding: 4px 8px; -webkit-tap-highlight-color: transparent;
+}
+.sheet-sub { font-size: 0.78em; color: #9ca3af; margin: 3px 0 14px; }
+/* OpenMoji's license asks for a credit wherever its art is shown. */
+.sheet-credit { font-size: 0.68em; color: #9ca3af; margin-top: 14px; text-align: center; }
+.sheet-credit a { color: inherit; }
+.collection-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: -6px -3px;   /* less the tiles' own margins */
+}
+/* 72px, not the art row's 76px: the sheet is inset by its own padding, and  */
+/* 4 x 72 + 3 x 6 is what still fits four across inside it.                  */
+.collection-item {
+  width: 72px; margin: 6px 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* One heading per category, spanning the whole row of the flex grid. */
+.collection-head {
+  width: calc(100% - 6px); font-size: 0.8em; font-weight: 700; color: #cbd5e1;
+  margin: 16px 3px 6px; padding-bottom: 4px; border-bottom: 1px solid #2b3446;
+}
+.collection-head:first-child { margin-top: 6px; }
+.collection-item canvas { width: 62px; height: 62px; border-radius: 50%; display: block; }
+.collection-item span { margin-top: 4px; font-size: 0.62em; color: #6b7280; text-align: center; line-height: 1.2; }
+.collection-item.found { cursor: pointer; }
+.collection-item.found span { color: #f9fafb; }
+.zoom-view { display: none; text-align: center; }
+.zoom-view.open { display: block; }
+.zoom-view canvas { width: 100%; max-width: 250px; height: auto; border-radius: 50%; display: inline-block; }
+.zoom-view h3 { font-size: 1.25em; margin: 14px 0 0; }
+/* The point of opening an animal you've already found: run it again on  */
+/* purpose. It's the primary action here, so it gets the Start button's  */
+/* blue and sits above "back".                                           */
+.zoom-start {
+  display: block; width: 100%; max-width: 250px; margin: 16px auto 0;
+  padding: 13px 20px; border: none; border-radius: 22px;
+  background: #3b82f6; color: #ffffff; font-size: 1em; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.zoom-start:active { background: #2563eb; }
+/* Picking it for later, not now: same width as Start so it reads as the   */
+/* other thing you can do here, but outlined rather than filled so it      */
+/* doesn't compete with Start for the eye.                                 */
+.zoom-select {
+  display: block; width: 100%; max-width: 250px; margin: 10px auto 0;
+  padding: 11px 20px; border-radius: 22px; font-size: 0.92em; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  background: transparent; color: var(--fg); border: 1.5px solid #6b7280;
+}
+.zoom-select:active { background: rgba(107,114,128,0.15); }
+.zoom-back {
+  margin-top: 10px; padding: 10px 22px; border: none; border-radius: 20px;
+  background: #374151; color: #f9fafb; font-size: 0.9em; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Names the animal the setup screen is currently holding, so a picked   */
+/* animal isn't an unlabelled circle. Never shown for the surprise tile. */
+.preview-label {
+  display: none; margin-top: 8px; font-size: 0.85em; font-weight: 600;
+  color: var(--fg);
+}
+.preview-label.visible { display: block; }
+
+/* viewport-fit=cover lets the page run under the notch / Dynamic Island  */
+/* and the home indicator; keep content out from under them.             */
+body {
+  padding-top: max(20px, env(safe-area-inset-top));
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+}
+
+/* ---- Phone on its side ------------------------------------------------ */
+/* ~320-390px of height. The stacked layout put the countdown and most of */
+/* the picture off-screen. Side by side instead: the picture as big as    */
+/* the height allows, the time and buttons beside it. max-height keeps    */
+/* this off iPads, where the stacked layout fits fine.                     */
+@media (orientation: landscape) and (max-height: 500px) {
+  body {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  h1 { display: none; }
+
+  /* Setup: pictures on the left, everything else (with Start) on the right. */
+  .setup {
+    max-width: 720px;
+    display: flex;
+  }
+  .setup-col + .setup-col { margin-left: 32px; }
+  .setup-col { flex: 1; min-width: 0; }
+
+  .timer-view { max-width: none; }
+  .timer-view.active {
+    display: grid; min-height: calc(100vh - 24px); min-height: calc(100dvh - 24px);
+    grid-template-columns: auto auto;
+    grid-template-rows: 1fr auto auto auto auto 1fr;
+    grid-template-areas: "pic ." "pic banner" "pic time" "pic name" "pic controls" "pic .";
+    justify-content: center;
+    align-items: center;
+    column-gap: 40px;
+  }
+  /* 36px = body padding (2 x 12) + the two-ring box-shadow (2 x 6). */
+  canvas#canvas {
+    grid-area: pic;
+    width: calc(100vh - 36px); width: calc(100dvh - 36px);
+    max-width: 320px;
+  }
+  .wake-banner { grid-area: banner; }
+  .time-display { grid-area: time; text-align: center; }
+  .reveal-name { grid-area: name; margin-top: 0; margin-bottom: 8px; }
+  .controls { grid-area: controls; justify-content: center; margin-top: 4px; }
+}

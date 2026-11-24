@@ -21,7 +21,7 @@ package-lock.json
 .gitignore
 .github
 .claude
-/scripts
+scripts
 tests
 test-results
 playwright-report

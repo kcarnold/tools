@@ -2,14 +2,13 @@
 //
 // Everything in the collection (animals, food, words, patterns) is deliberately
 // hard to see: the only way to one in the app is to finish a run and be given
-// it, and the collection hides the names of the ones you haven't found. That is right for an eight-year-old
-// and wrong for anyone editing anBlobfish(). This renders any of them straight
-// to a PNG.
+// it. That is right for an eight-year-old and wrong for anyone editing
+// anBlobfish(). This renders any of them straight to a PNG.
 //
 //   node shots.mjs Fox Cat        render those animals, large
-//   node shots.mjs                render everything (except the OpenMoji animals)
+//   node shots.mjs                render everything
 //   node shots.mjs --grid         the whole collection sheet, at real tile size
-//   node shots.mjs --compare Fox  this file vs git HEAD, side by side
+//   node shots.mjs --compare Fox  working tree vs git HEAD, side by side
 //
 //   --compare=REV   compare against some other revision (default HEAD)
 //   --out-dir=DIR   where the PNGs go (default: the current directory)
@@ -20,19 +19,14 @@
 //   PLAYWRIGHT_CHROMIUM_PATH=…   browser binary, if the package and the
 //                                pre-installed browser revision disagree
 //
-// Needs playwright: npm i -D playwright, or NODE_PATH=/path/to/global/node_modules.
+// Needs the repository's own dev dependencies: npm install.
 
-import { createRequire } from 'node:module';
+import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
-
-const require = createRequire(import.meta.url);
-let chromium;
-try { ({ chromium } = require('playwright')); }
-catch { console.error('Cannot find "playwright". Install it (npm i -D playwright) or set NODE_PATH.'); process.exit(2); }
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -43,7 +37,7 @@ const flag = (name, fallback) => {
 };
 if (flag('help')) { console.log(readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').filter(l => l.startsWith('//')).join('\n')); process.exit(0); }
 
-const APP     = process.env.APP || join(HERE, 'index.html');
+const APP     = resolve(process.env.APP || join(HERE, '..', 'index.html'));
 const OUT_DIR = resolve(String(flag('out-dir', process.cwd())));
 const PREFIX  = flag('prefix', '') === true ? '' : String(flag('prefix', ''));
 const SIZE    = Number(flag('size', 512)) || 512;
@@ -52,15 +46,6 @@ const names   = args.filter(a => !a.startsWith('--'));
 
 const launchOpts = { headless: true, args: ['--no-sandbox'] };
 if (process.env.PLAYWRIGHT_CHROMIUM_PATH) launchOpts.executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
-
-// Locked tiles hide their names on purpose, so the roster comes from the
-// source's own ANIMALS table rather than from the DOM.
-const roster = (appPath) => {
-  const src = readFileSync(appPath, 'utf8');
-  const drawn = [...src.matchAll(/\{name:'([^']+)',\s*fn:(?:an|fd|art)/g)].map(m => m[1]);
-  const words = (src.match(/WORD_LIST = \[([^\]]*)\]/) || [, ''])[1].match(/'[^']+'/g) || [];
-  return drawn.concat(words.map(w => w.slice(1, -1)));
-};
 
 const slug = n => n.toLowerCase().replace(/[^a-z0-9]/g, '');
 const writePng = (file, dataUrl) => {
@@ -75,8 +60,9 @@ async function unlockedPage(browser, appPath, opts = {}) {
   await page.goto('file://' + appPath);
   await page.evaluate(ns => {
     localStorage.setItem('revealTimer.animals.v1', JSON.stringify({ found: ns }));
-  }, roster(appPath));
+  }, roster);
   await page.reload();
+  await page.waitForLoadState('networkidle');
   return page;
 }
 
@@ -115,6 +101,15 @@ async function renderAnimals(browser, appPath, want, size) {
 
 const browser = await chromium.launch(launchOpts);
 
+// Every name there is, from the working tree's own catalog.
+const roster = await (async () => {
+  const page = await browser.newPage();
+  await page.goto('file://' + join(HERE, '..', 'index.html'));
+  const all = await page.evaluate(() => window.RT.catalog.items.map(item => item.name));
+  await page.close();
+  return all;
+})();
+
 if (flag('grid')) {
   // Real tile size, magnified for looking at: 62px is where these drawings are
   // smallest, and small is where a redrawn one tends to fall apart.
@@ -128,16 +123,17 @@ if (flag('grid')) {
   const rev = COMPARE === true ? 'HEAD' : COMPARE;
   let oldApp;
   try {
-    const rel = 'round-timer/index.html';
-    const src = execFileSync('git', ['show', `${rev}:${rel}`], { cwd: HERE, maxBuffer: 1 << 26 });
-    oldApp = join(mkdtempSync(join(tmpdir(), 'shots-')), 'index.html');
-    writeFileSync(oldApp, src);
+    const dir = mkdtempSync(join(tmpdir(), 'shots-'));
+    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: HERE, encoding: 'utf8' }).trim();
+    const tar = execFileSync('git', ['archive', rev, 'round-timer'], { cwd: top, maxBuffer: 1 << 26 });
+    execFileSync('tar', ['-x', '-C', dir], { input: tar });
+    oldApp = join(dir, 'round-timer', 'index.html');
   } catch (e) {
-    console.error(`cannot read ${rev}:round-timer/index.html from git — ${e.message.trim().split('\n')[0]}`);
+    console.error(`cannot read ${rev}:round-timer from git — ${e.message.trim().split('\n')[0]}`);
     await browser.close();
     process.exit(2);
   }
-  const want = names.length ? names : roster(APP);
+  const want = names.length ? names : roster;
   const [before, after] = await Promise.all([
     renderAnimals(browser, oldApp, want, SIZE),
     renderAnimals(browser, APP, want, SIZE),
@@ -160,7 +156,7 @@ if (flag('grid')) {
   }
   await page.close();
 } else {
-  const rendered = await renderAnimals(browser, APP, names.length ? names : roster(APP), SIZE);
+  const rendered = await renderAnimals(browser, APP, names.length ? names : roster, SIZE);
   for (const [name, dataUrl] of rendered) writePng(join(OUT_DIR, PREFIX + slug(name) + '.png'), dataUrl);
 }
 
