@@ -117,5 +117,13 @@
 <script src="art/tiles.js"></script>
 <script src="catalog.js"></script>
 <script src="app.js"></script>
+<script>
+  /* Only for opening without a network; everything works without it. */
+  if ('serviceWorker' in navigator && /^http/.test(location.protocol)) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('sw.js').catch(function() {});
+    });
+  }
+</script>
 </body>
 </html>
