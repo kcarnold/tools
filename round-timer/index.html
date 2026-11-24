@@ -1870,7 +1870,6 @@
 
   /* ---- State -------------------------------------------------------------- */
   var selectedImg = null;
-  var isUpload    = false;
   var selectedArt = null;   /* name of the chosen preset, or null for an upload */
   var totalMs     = 0;
   var remainingMs = 0;
@@ -1888,6 +1887,9 @@
   var audioCtx    = null;
   var maskColor   = '17,24,39';
   var wakeLock    = null;
+  var wakeLockWanted = null;  /* the request that may still set wakeLock        */
+  var chimeNotes  = [];       /* oscillators scheduled and not yet silenced     */
+  var chimeId     = 0;        /* bumped to drop a chime still waiting to start  */
   var keepAliveId = null;
   var wakeBanner  = document.getElementById('wakeBanner');
   var wakeBannerClose = document.getElementById('wakeBannerClose');
@@ -1897,17 +1899,22 @@
   var pendingItem  = null;  /* what this run will reveal — not shown yet        */
   var chosenItem   = null;  /* a found item picked on purpose from the sheet    */
 
+  /* The middle of a photo, at the size it's shown. Once, on loading: scaling a */
+  /* 12-megapixel photo on every frame is more than an old iPad can do.         */
+  function cropToSquare(img) {
+    var S=canvas.width, c=document.createElement('canvas');
+    c.width=S; c.height=S;
+    var scale=Math.max(S/img.width, S/img.height), w=img.width*scale, h=img.height*scale;
+    c.getContext('2d').drawImage(img,(S-w)/2,(S-h)/2,w,h);
+    return c;
+  }
+
   /* ---- Preview ----------------------------------------------------------- */
-  function showPreview(src, srcIsUpload) {
+  function showPreview(src) {
     var ps = previewCvs.width;
     pctx.clearRect(0,0,ps,ps);
     pctx.save(); pctx.beginPath(); pctx.arc(ps/2,ps/2,ps/2,0,Math.PI*2); pctx.clip();
-    if (srcIsUpload && src.width && src.height) {
-      var sc=Math.max(ps/src.width,ps/src.height);
-      pctx.drawImage(src,(ps-src.width*sc)/2,(ps-src.height*sc)/2,src.width*sc,src.height*sc);
-    } else {
-      pctx.drawImage(src,0,0,ps,ps);
-    }
+    pctx.drawImage(src,0,0,ps,ps);
     pctx.restore();
     previewWrap.className='preview-wrap visible';
   }
@@ -2100,14 +2107,22 @@
     wakeBanner.className = ('wakeLock' in navigator) ? 'wake-banner' : 'wake-banner visible';
   }
 
+  /* The lock arrives later than it's asked for, by which time it may no longer */
+  /* be wanted (wakeLockWanted) or a newer one may have been asked for.         */
   function requestWakeLock() {
     if (!('wakeLock' in navigator)) return;
+    releaseWakeLock();
+    var request = wakeLockWanted = {};
     try {
-      navigator.wakeLock.request('screen').then(function(lock) { wakeLock = lock; }).catch(function() {});
+      navigator.wakeLock.request('screen').then(function(lock) {
+        if (wakeLockWanted === request) wakeLock = lock;
+        else lock.release();
+      }).catch(function() {});
     } catch (e) {}
   }
 
   function releaseWakeLock() {
+    wakeLockWanted = null;
     if (wakeLock) { wakeLock.release(); wakeLock = null; }
   }
 
@@ -2118,7 +2133,7 @@
   }
 
   document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible' && running) {
+    if (document.visibilityState === 'visible' && (running || celebrating)) {
       requestWakeLock();
       resumeAudioCtx();
     }
@@ -2143,8 +2158,8 @@
   function resumeAudioCtx() {
     var ctx = ensureAudioCtx();
     if (!ctx) return Promise.resolve();
-    if (ctx.state === 'running') return Promise.resolve();
-    if (ctx.state === 'suspended' && ctx.resume) {
+    /* Anything but running: iOS also has 'interrupted' (a call, the lock screen). */
+    if (ctx.state !== 'running' && ctx.resume) {
       try { return ctx.resume(); } catch (e) {}
     }
     return Promise.resolve();
@@ -2157,7 +2172,7 @@
     stopKeepAlive();
     keepAliveId = setInterval(function() {
       if (!audioCtx) return;
-      if (audioCtx.state === 'suspended') { audioCtx.resume(); return; }
+      if (audioCtx.state !== 'running') { resumeAudioCtx(); return; }
       var buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
       var src = audioCtx.createBufferSource();
       src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
@@ -2178,10 +2193,10 @@
     reader.onload = function(e) {
       var image = new Image();
       image.onload = function() {
-        selectedImg=image; isUpload=true; selectedArt=null; surpriseCat=null;
+        selectedImg=cropToSquare(image); selectedArt=null; surpriseCat=null;
         chosenItem=null;
         deselectAllArt();
-        showPreview(image, true);
+        showPreview(selectedImg);
         setPreviewLabel('');
         uploadLabel.textContent='Loaded: '+file.name;
         startBtn.disabled=false; startBtn.textContent='Start';
@@ -2197,6 +2212,7 @@
   function beginRun() {
     if (!selectedImg) return;
     cancelAnimationFrame(rafId);   /* stop any celebration still animating */
+    stopChime();
     if (soundToggle.checked) { ensureAudioCtx(); playStartSound(); }
     saveSettings();
     /* A surprise is chosen here, not when the tile was tapped — so nothing on   */
@@ -2208,7 +2224,7 @@
       pendingItem = pickSurprise(surpriseCat);
       var ac = document.createElement('canvas'); ac.width=320; ac.height=320;
       try { pendingItem.fn(ac.getContext('2d'), 320); } catch (e) {}
-      selectedImg = ac; isUpload = false;
+      selectedImg = ac;
     }
     pickRevealPattern();
     totalMs=parseInt(durationSel.value,10)*1000;
@@ -2264,7 +2280,7 @@
     /* what was just revealed.                                                  */
     if (surpriseCat && artPickers[SURPRISE_KEY+surpriseCat]) artPickers[SURPRISE_KEY+surpriseCat]();
     setPauseButton(false); ctx.clearRect(0,0,canvas.width,canvas.height);
-    releaseWakeLock(); stopKeepAlive();
+    releaseWakeLock(); stopKeepAlive(); stopChime();
   });
 
   /* ---- Surprise tiles — wrapped so one bad art can't break the others ----- */
@@ -2292,9 +2308,9 @@
       wrap.className = 'art-thumb-wrap surprise selected';
       var oc = document.createElement('canvas'); oc.width=320; oc.height=320;
       try { artSurprise(oc.getContext('2d'), 320, cat); } catch (e) {}
-      selectedImg=oc; isUpload=false; selectedArt=SURPRISE_KEY+cat.id; surpriseCat=cat.id;
+      selectedImg=oc; selectedArt=SURPRISE_KEY+cat.id; surpriseCat=cat.id;
       chosenItem=null;
-      showPreview(oc, false);
+      showPreview(oc);
       setPreviewLabel('');
       uploadLabel.textContent='Upload your own photo';
       startBtn.disabled=false; startBtn.textContent='Start';
@@ -2312,9 +2328,9 @@
     deselectAllArt();
     var oc = document.createElement('canvas'); oc.width=320; oc.height=320;
     try { item.fn(oc.getContext('2d'), 320); } catch (e) {}
-    selectedImg=oc; isUpload=false; selectedArt=ITEM_KEY+item.name;
+    selectedImg=oc; selectedArt=ITEM_KEY+item.name;
     surpriseCat=null; chosenItem=item;
-    showPreview(oc, false);
+    showPreview(oc);
     setPreviewLabel(item.name);
     uploadLabel.textContent='Upload your own photo';
     startBtn.disabled=false; startBtn.textContent='Start';
@@ -2478,7 +2494,7 @@
       revealName.appendChild(document.createTextNode(pendingItem.name));
       revealName.className = 'reveal-name visible';
     }
-    celebrating=true; celebStart=Date.now(); celebFade=1;
+    running=false; celebrating=true; celebStart=Date.now(); celebFade=1;
     done=true; setPauseButton(false);
     drawFrame(0);            /* fully-revealed artwork, so the sample is of it  */
     measureCelebContrast();
@@ -2512,7 +2528,7 @@
       ? Math.max(0,(CELEB_DUR-elapsed)/CELEB_FADE) : 1;
     drawFrame(0); drawCelebration(activeCeleb, elapsed);
     if (elapsed<CELEB_DUR) { rafId=requestAnimationFrame(celebTick); }
-    else { drawFrame(0); celebrating=false; stopKeepAlive(); }
+    else { drawFrame(0); celebrating=false; releaseWakeLock(); stopKeepAlive(); }
   }
 
   /* ---- How the picture gets uncovered -------------------------------------- */
@@ -2646,13 +2662,7 @@
     ctx.clearRect(0,0,S,S);
     if (!selectedImg) return;
     ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.clip();
-    if (isUpload && selectedImg.width && selectedImg.height) {
-      var scale=Math.max(S/selectedImg.width, S/selectedImg.height);
-      var dw=selectedImg.width*scale, dh=selectedImg.height*scale;
-      ctx.drawImage(selectedImg,(S-dw)/2,(S-dh)/2,dw,dh);
-    } else {
-      ctx.drawImage(selectedImg,0,0,S,S);
-    }
+    ctx.drawImage(selectedImg,0,0,S,S);
     ctx.restore();
     if (fraction<=0) return;
     /* Every pattern draws inside this clip, so none of them has to know it is   */
@@ -2784,8 +2794,10 @@
   /* inside the tap), and several times when the round finishes, spaced out so */
   /* it's still audible if you glance back a few seconds late.                 */
   function playChime(repeats, peak) {
+    stopChime();
+    var id = chimeId;
     resumeAudioCtx().then(function() {
-      if (!audioCtx) return;
+      if (!audioCtx || id !== chimeId) return;
       var notes=[523.25,659.25,783.99,1046.50];
       var noteGap=0.18, roundGap=0.5;
       var roundDur=notes.length*noteGap+0.56;
@@ -2801,9 +2813,18 @@
           gain.gain.linearRampToValueAtTime(peak,t+0.05);
           gain.gain.exponentialRampToValueAtTime(0.0001,t+0.55);
           osc.start(t); osc.stop(t+0.56);
+          chimeNotes.push({osc:osc, gain:gain});
         });
       }
     });
+  }
+
+  function stopChime() {
+    chimeId++;
+    for (var i=0; i<chimeNotes.length; i++) {
+      try { chimeNotes[i].osc.disconnect(); chimeNotes[i].gain.disconnect(); } catch (e) {}
+    }
+    chimeNotes = [];
   }
 
   function playStartSound() { playChime(1, 0.16); }
