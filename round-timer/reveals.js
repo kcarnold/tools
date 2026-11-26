@@ -113,7 +113,7 @@
 
   RT.reveals = {
     pick: function() {
-      switch (Math.floor(Math.random()*4)) {
+      switch (Math.floor(Math.random()*8)) {
         case 0:  return wedge;
         case 1:  return iris;
         case 2:  return curtain;
