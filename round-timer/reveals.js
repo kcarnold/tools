@@ -70,7 +70,7 @@
   /* They come off outside-in: the order is by distance from the middle plus up   */
   /* to two thirds of a tile of noise, which makes the edge ragged while still    */
   /* keeping the face for last.                                                   */
-  var TILE_N = 6;
+  var TILE_N = 8;
 
   function planTiles(S) {
     var n=TILE_N, cell=S/n, r=S/2, i, j, k, col, row, hits, sx, sy;
