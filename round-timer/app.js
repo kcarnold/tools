@@ -232,8 +232,13 @@
 
   function pad(n) { return n<10 ? '0'+n : ''+n; }
 
+  /* Tapping the time switches to whole seconds left, in binary, and back. */
+  var showBinary = false;
+
   function showTime(ms) {
-    var s=Math.ceil(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
+    var s=Math.ceil(ms/1000);
+    if (showBinary) { timeDisplay.textContent = s.toString(2); return; }
+    var h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
     timeDisplay.textContent = (h>0 ? pad(h)+':' : '') + pad(m) + ':' + pad(s%60);
   }
 
@@ -272,6 +277,11 @@
   }
 
   startBtn.addEventListener('click', beginRun);
+
+  timeDisplay.addEventListener('click', function() {
+    showBinary = !showBinary;
+    if (run) showTime(run.remainingMs);
+  });
 
   pauseBtn.addEventListener('click', function() {
     if (phase === 'running') {
